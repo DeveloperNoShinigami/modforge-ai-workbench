@@ -7,6 +7,7 @@ import { CodeEditor } from "@/components/CodeEditor";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { useProjects } from "@/hooks/useProjects";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +29,7 @@ const Index = () => {
   const [currentTier, setCurrentTier] = useState<'free' | 'junior' | 'senior'>('free');
   const { projects, loading, fetchProjects, updateProjectStatus, deleteProject } = useProjects();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const features = [
     {
@@ -168,7 +170,15 @@ const Index = () => {
               </div>
               
               <div className="space-y-6">
-                <AIAssistant currentTier={currentTier} />
+                <AIAssistant 
+                  currentTier={currentTier} 
+                  onCodeGenerated={(code, filename) => {
+                    toast({
+                      title: "Code generated!",
+                      description: `${filename} created. Open a project to edit it.`
+                    });
+                  }}
+                />
               </div>
             </div>
           </TabsContent>

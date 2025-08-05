@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, GitBranch, Play, Settings, Trash2 } from "lucide-react";
 import { Project } from "@/hooks/useProjects";
+import { useNavigate } from "react-router-dom";
 
 interface ProjectCardProps extends Omit<Project, 'user_id' | 'mod_id' | 'description'> {
   onStatusUpdate?: (projectId: string, status: Project['status']) => void;
@@ -10,6 +11,7 @@ interface ProjectCardProps extends Omit<Project, 'user_id' | 'mod_id' | 'descrip
 }
 
 export function ProjectCard({ id, name, platform, minecraft_version, updated_at, status, onStatusUpdate, onDelete }: ProjectCardProps) {
+  const navigate = useNavigate();
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case 'forge': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
@@ -65,7 +67,12 @@ export function ProjectCard({ id, name, platform, minecraft_version, updated_at,
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="hero" size="sm" className="flex-1">
+          <Button 
+            variant="hero" 
+            size="sm" 
+            className="flex-1"
+            onClick={() => navigate(`/project/${id}`)}
+          >
             <Play className="w-3 h-3" />
             Open
           </Button>

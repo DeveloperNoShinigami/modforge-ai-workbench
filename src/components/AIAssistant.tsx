@@ -1,14 +1,32 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Send, Sparkles, Brain, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Zap, Send, Sparkles, Brain, MessageSquare, Loader2 } from "lucide-react";
+import { useAI } from "@/hooks/useAI";
 
 interface AIAssistantProps {
   currentTier: 'free' | 'junior' | 'senior';
+  onCodeGenerated?: (code: string, filename: string) => void;
 }
 
-export function AIAssistant({ currentTier }: AIAssistantProps) {
+export function AIAssistant({ currentTier, onCodeGenerated }: AIAssistantProps) {
+  const [prompt, setPrompt] = useState("");
+  const [response, setResponse] = useState<string | null>(null);
+  const { generateCode, loading } = useAI();
+  const handleSubmit = async (promptText?: string) => {
+    const textToUse = promptText || prompt;
+    if (!textToUse.trim()) return;
+    
+    const result = await generateCode(textToUse);
+    if (result) {
+      setResponse(result.explanation);
+      onCodeGenerated?.(result.code, result.filename);
+      setPrompt("");
+    }
+  };
   const getRequestsRemaining = () => {
     switch (currentTier) {
       case 'free': return '7 of 10';
@@ -47,9 +65,18 @@ export function AIAssistant({ currentTier }: AIAssistantProps) {
           <Input 
             placeholder="Describe what you want to create..." 
             className="flex-1"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmit()}
+            disabled={loading}
           />
-          <Button variant="tier" size="sm">
-            <Send className="w-4 h-4" />
+          <Button 
+            variant="tier" 
+            size="sm" 
+            onClick={() => handleSubmit()}
+            disabled={loading || !prompt.trim()}
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
         
@@ -65,6 +92,8 @@ export function AIAssistant({ currentTier }: AIAssistantProps) {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start text-left h-auto p-2 text-xs hover:bg-accent/10"
+                onClick={() => handleSubmit(suggestion)}
+                disabled={loading}
               >
                 <MessageSquare className="w-3 h-3 mr-2 flex-shrink-0 text-accent" />
                 {suggestion}
@@ -80,6 +109,16 @@ export function AIAssistant({ currentTier }: AIAssistantProps) {
             )}
           </div>
         </div>
+        
+        {response && (
+          <div className="bg-accent/5 border border-accent/20 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Brain className="w-4 h-4 text-accent" />
+              <span className="text-sm font-medium text-accent">AI Response</span>
+            </div>
+            <p className="text-sm text-foreground">{response}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
