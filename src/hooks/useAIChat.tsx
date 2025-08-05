@@ -129,8 +129,8 @@ export function useAIChat() {
     addMessage('user', `Please review my ${file.name} file`, file.name);
 
     try {
-      // Call the real Supabase Edge Function for code review
-      const { data, error } = await supabase.functions.invoke('review-code', {
+      // Call the new simple review function that always returns 200
+      const { data, error } = await supabase.functions.invoke('simple-review', {
         body: {
           code: file.content,
           filename: file.name,
