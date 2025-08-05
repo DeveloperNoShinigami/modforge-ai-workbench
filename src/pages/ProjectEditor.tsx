@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 import { useProjects } from "@/hooks/useProjects";
-import { useFileManager, ProjectFile } from "@/hooks/useFileManager";
+import { useFileManager, ProjectFile as FileManagerFile } from "@/hooks/useFileManager";
+import { ProjectFile, adaptFromFileManager, adaptToFileManager } from "@/hooks/useFileAdapter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ export default function ProjectEditor() {
   
   const { projectId } = useParams();
   const { projects } = useProjects();
-  const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileManagerFile | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   
@@ -32,7 +33,7 @@ export default function ProjectEditor() {
   
   const project = projects.find(p => p.id === projectId);
 
-  const handleFileSelect = (file: ProjectFile) => {
+  const handleFileSelect = (file: FileManagerFile) => {
     if (file.is_directory) return;
     
     setSelectedFile(file);
@@ -211,14 +212,7 @@ export default function ProjectEditor() {
               <AIAssistant
                 currentTier="junior"
                 projectId={projectId}
-                currentFile={selectedFile ? {
-                  id: selectedFile.id,
-                  name: selectedFile.file_name,
-                  type: selectedFile.file_type as 'java' | 'json' | 'mcmeta' | 'properties' | 'toml' | 'bat' | 'sh' | 'md' | 'gitignore' | 'gradle',
-                  content: selectedFile.file_content,
-                  path: selectedFile.file_path,
-                  modified: Boolean(unsavedChanges)
-                } : undefined}
+                currentFile={selectedFile ? adaptFromFileManager(selectedFile) : undefined}
                 onCodeGenerated={handleCodeGenerated}
               />
               

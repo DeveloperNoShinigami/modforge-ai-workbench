@@ -11,6 +11,16 @@ export interface ProjectFile {
   modified: boolean;
   isFolder?: boolean;
   parentPath?: string;
+  // Legacy compatibility with useFileManager
+  project_id?: string;
+  file_path?: string;
+  file_name?: string;
+  file_content?: string;
+  file_type?: string;
+  is_directory?: boolean;
+  parent_path?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProjectFolder {

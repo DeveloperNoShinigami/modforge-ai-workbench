@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, Send, Sparkles, Brain, MessageSquare, Loader2, History, FileSearch } from "lucide-react";
 import { useAIChat } from "@/hooks/useAIChat";
 import { ChatHistory } from "@/components/ChatHistory";
-import { ProjectFile } from "@/hooks/useProjectEditor";
+import { ProjectFile } from "@/hooks/useFileAdapter";
 
 interface AIAssistantProps {
   currentTier: 'free' | 'junior' | 'senior';

@@ -18,14 +18,15 @@ import {
   Package,
   Download
 } from 'lucide-react';
-import { useFileManager, ProjectFile, ForgeFileType } from '@/hooks/useFileManager';
+import { useFileManager, ForgeFileType } from '@/hooks/useFileManager';
+import { ProjectFile, adaptFromFileManager } from '@/hooks/useFileAdapter';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileExplorerProps {
   projectId: string;
   modId: string;
-  onFileSelect: (file: ProjectFile) => void;
-  selectedFile?: ProjectFile;
+  onFileSelect: (file: any) => void;
+  selectedFile?: any;
 }
 
 export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: FileExplorerProps) {
@@ -49,6 +50,8 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const adaptedFiles = files.map(adaptFromFileManager);
+  
   const buildFileTree = (files: ProjectFile[]) => {
     const tree: Record<string, any> = {};
     
@@ -680,7 +683,7 @@ public class ModBlocks {
     );
   }
 
-  const tree = buildFileTree(files);
+  const tree = buildFileTree(adaptedFiles);
   
   return (
     <Card className="h-full">

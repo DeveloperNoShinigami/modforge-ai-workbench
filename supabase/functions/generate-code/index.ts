@@ -103,7 +103,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'X-Title': 'ModForge AI Workbench',
       };
       requestBody = {
-        model: 'gpt-4.1-2025-04-14',
+        model: 'anthropic/claude-3.5-sonnet',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -119,7 +119,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'Content-Type': 'application/json',
       };
       requestBody = {
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }

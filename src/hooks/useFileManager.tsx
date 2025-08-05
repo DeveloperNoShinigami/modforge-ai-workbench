@@ -13,6 +13,14 @@ export interface ProjectFile {
   parent_path?: string;
   created_at: string;
   updated_at: string;
+  // Compatibility with useProjectEditor
+  name?: string;
+  path?: string;
+  content?: string;
+  type?: 'java' | 'json' | 'mcmeta' | 'properties' | 'toml' | 'bat' | 'sh' | 'md' | 'gitignore' | 'gradle';
+  modified?: boolean;
+  isFolder?: boolean;
+  parentPath?: string;
 }
 
 export interface ForgeFileType {

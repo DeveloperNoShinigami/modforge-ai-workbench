@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChatMessage } from '@/components/ChatHistory';
-import { ProjectFile } from '@/hooks/useProjectEditor';
+import { ProjectFile } from '@/hooks/useFileAdapter';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -198,7 +198,12 @@ export function useAIChat() {
       type: 'java',
       path: 'temp.java',
       content: code,
-      modified: false
+      modified: false,
+      project_id: 'temp',
+      file_path: 'temp.java',
+      file_name: 'temp.java',
+      file_content: code,
+      file_type: 'java'
     };
     
     return await reviewCodeWithAI(mockFile);
