@@ -89,7 +89,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'X-Title': 'ModForge AI Workbench',
       };
       requestBody = {
-        model: 'deepseek/deepseek-r1-0528:free',
+        model: 'deepseek/deepseek-r1',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -105,7 +105,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'Content-Type': 'application/json',
       };
       requestBody = {
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }

@@ -35,6 +35,7 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     createFile, 
     createFolder, 
     deleteFile, 
+    updateFile,
     createFileFromTemplate, 
     forgeFileTypes 
   } = useFileManager(projectId);
@@ -92,13 +93,22 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     
     try {
       const fileData = JSON.parse(e.dataTransfer.getData('text/plain'));
-      // TODO: Implement file move functionality
+      const newPath = targetPath === 'root' ? fileData.file_name : `${targetPath}/${fileData.file_name}`;
+      
+      // Update file path in database
+      await updateFile(fileData.id, fileData.file_content, newPath);
+      
       toast({
-        title: "File move",
-        description: `Moving ${fileData.file_name} to ${targetPath}`,
+        title: "File moved",
+        description: `${fileData.file_name} moved to ${targetPath}`,
       });
     } catch (error) {
       console.error('Error moving file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to move file",
+        variant: "destructive"
+      });
     }
   };
 
@@ -110,19 +120,209 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
       });
       
       // Create main mod folder structure
+      await createFolder('src', undefined);
+      await createFolder('src/main', undefined);
+      await createFolder('src/main/java', undefined);
+      await createFolder('src/main/java/com', undefined);
+      await createFolder('src/main/java/com/example', undefined);
       await createFolder('src/main/java/com/example/' + modId, undefined);
       await createFolder('src/main/resources', undefined);
+      await createFolder('src/main/resources/META-INF', undefined);
+      await createFolder('src/main/resources/assets', undefined);
       await createFolder('src/main/resources/assets/' + modId, undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/textures', undefined);
       await createFolder('src/main/resources/assets/' + modId + '/textures/item', undefined);
       await createFolder('src/main/resources/assets/' + modId + '/textures/block', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/models', undefined);
       await createFolder('src/main/resources/assets/' + modId + '/models/item', undefined);
       await createFolder('src/main/resources/assets/' + modId + '/models/block', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/blockstates', undefined);
       await createFolder('src/main/resources/assets/' + modId + '/lang', undefined);
+      await createFolder('src/main/resources/data', undefined);
       await createFolder('src/main/resources/data/' + modId, undefined);
       await createFolder('src/main/resources/data/' + modId + '/recipes', undefined);
+      await createFolder('gradle', undefined);
+      await createFolder('gradle/wrapper', undefined);
       
       // Create sample files with complete content
       const sampleFiles = [
+        // Root files
+        {
+          name: 'build.gradle',
+          path: 'build.gradle',
+          content: `buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+    }
+}
+
+plugins {
+    id 'eclipse'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '5.1.+'
+}
+
+version = '0.0.1-1.20.1'
+group = 'com.example.${modId}'
+archivesBaseName = '${modId}'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                ${modId} {
+                    source sourceSets.main
+                }
+            }
+        }
+        
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                ${modId} {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    maven {
+        name = 'ParchmentMC'
+        url = 'https://maven.parchmentmc.org'
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"     : "${modId}",
+                "Specification-Vendor"    : "ExampleAuthor",
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                "Implementation-Vendor"   : "ExampleAuthor",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}`,
+          type: 'gradle'
+        },
+        {
+          name: 'settings.gradle',
+          path: 'settings.gradle',
+          content: `pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'MinecraftForge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+    }
+}`,
+          type: 'gradle'
+        },
+        {
+          name: 'gradle.properties',
+          path: 'gradle.properties',
+          content: `org.gradle.jvmargs=-Xmx3G
+org.gradle.daemon=false`,
+          type: 'properties'
+        },
+        {
+          name: 'gradlew',
+          path: 'gradlew',
+          content: `#!/usr/bin/env sh
+./gradle/wrapper/gradle-wrapper.jar`,
+          type: 'shell'
+        },
+        {
+          name: 'gradlew.bat',
+          path: 'gradlew.bat',
+          content: `@rem Execute Gradle
+@rem Add default JVM options here
+gradle-wrapper.jar %*`,
+          type: 'batch'
+        },
+        {
+          name: 'gradle-wrapper.properties',
+          path: 'gradle/wrapper/gradle-wrapper.properties',
+          content: `distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.1.1-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists`,
+          type: 'properties'
+        },
+        {
+          name: 'mods.toml',
+          path: 'src/main/resources/META-INF/mods.toml',
+          content: `modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="${modId}"
+version="0.0.1"
+displayName="${modId.charAt(0).toUpperCase() + modId.slice(1)}"
+updateJSONURL=""
+displayURL=""
+logoFile=""
+credits=""
+authors="YourName"
+description='''
+A sample Minecraft mod created with ModForge AI Workbench.
+'''
+
+[[dependencies.${modId}]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.${modId}]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"`,
+          type: 'toml'
+        },
+        {
+          name: 'pack.mcmeta',
+          path: 'src/main/resources/pack.mcmeta',
+          content: `{
+    "pack": {
+        "description": "${modId.charAt(0).toUpperCase() + modId.slice(1)} resources",
+        "pack_format": 15,
+        "forge:resource_pack_format": 15,
+        "forge:data_pack_format": 12
+    }
+}`,
+          type: 'json'
+        },
+        // Main mod class
         {
           name: modId.charAt(0).toUpperCase() + modId.slice(1) + 'Mod.java',
           path: `src/main/java/com/example/${modId}/${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.java`,
@@ -189,6 +389,80 @@ public class ModItems {
     }
 }`,
           type: 'java'
+        },
+        {
+          name: 'en_us.json',
+          path: `src/main/resources/assets/${modId}/lang/en_us.json`,
+          content: `{
+  "item.${modId}.example_item": "Example Item",
+  "block.${modId}.example_block": "Example Block",
+  "itemGroup.${modId}": "${modId.charAt(0).toUpperCase() + modId.slice(1)} Items"
+}`,
+          type: 'json'
+        },
+        {
+          name: 'example_item.json',
+          path: `src/main/resources/assets/${modId}/models/item/example_item.json`,
+          content: `{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "${modId}:item/example_item"
+  }
+}`,
+          type: 'json'
+        },
+        {
+          name: 'example_block.json',
+          path: `src/main/resources/assets/${modId}/models/block/example_block.json`,
+          content: `{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "${modId}:block/example_block"
+  }
+}`,
+          type: 'json'
+        },
+        {
+          name: 'example_block.json',
+          path: `src/main/resources/assets/${modId}/models/item/example_block.json`,
+          content: `{
+  "parent": "${modId}:block/example_block"
+}`,
+          type: 'json'
+        },
+        {
+          name: 'example_block.json',
+          path: `src/main/resources/assets/${modId}/blockstates/example_block.json`,
+          content: `{
+  "variants": {
+    "": {
+      "model": "${modId}:block/example_block"
+    }
+  }
+}`,
+          type: 'json'
+        },
+        {
+          name: 'example_recipe.json',
+          path: `src/main/resources/data/${modId}/recipes/example_recipe.json`,
+          content: `{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "minecraft:cobblestone"
+    }
+  },
+  "result": {
+    "item": "${modId}:example_block",
+    "count": 1
+  }
+}`,
+          type: 'json'
         },
         {
           name: 'ModBlocks.java',
@@ -308,9 +582,22 @@ public class ModBlocks {
           )}
           <span className="text-sm font-mono">{name}</span>
           {node.file && !node.file.is_directory && (
-            <Badge variant="outline" className="ml-auto text-xs">
-              {node.file.file_type}
-            </Badge>
+            <>
+              <Badge variant="outline" className="ml-auto text-xs">
+                {node.file.file_type}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFile(node.file.id);
+                }}
+                className="ml-1 h-6 w-6 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </>
           )}
         </div>
         

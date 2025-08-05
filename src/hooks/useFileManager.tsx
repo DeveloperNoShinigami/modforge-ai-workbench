@@ -129,11 +129,16 @@ export function useFileManager(projectId?: string) {
     }
   };
 
-  const updateFile = async (fileId: string, content: string): Promise<boolean> => {
+  const updateFile = async (fileId: string, content: string, newPath?: string): Promise<boolean> => {
     try {
+      const updateData: any = { file_content: content };
+      if (newPath) {
+        updateData.file_path = newPath;
+      }
+
       const { error } = await supabase
         .from('project_files')
-        .update({ file_content: content })
+        .update(updateData)
         .eq('id', fileId);
 
       if (error) throw error;
@@ -141,13 +146,13 @@ export function useFileManager(projectId?: string) {
       setFiles(prev => 
         prev.map(file => 
           file.id === fileId 
-            ? { ...file, file_content: content, updated_at: new Date().toISOString() }
+            ? { ...file, file_content: content, file_path: newPath || file.file_path, updated_at: new Date().toISOString() }
             : file
         )
       );
 
       if (currentFile?.id === fileId) {
-        setCurrentFile(prev => prev ? { ...prev, file_content: content } : null);
+        setCurrentFile(prev => prev ? { ...prev, file_content: content, file_path: newPath || prev.file_path } : null);
       }
 
       return true;
