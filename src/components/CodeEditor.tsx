@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Save, Zap, FileCode, Download } from "lucide-react";
 
 export function CodeEditor() {
+  console.log("💻 CodeEditor: Component loaded");
   const sampleCode = `@Mod("examplemod")
 public class ExampleMod {
     public static final String MODID = "examplemod";
@@ -53,11 +54,25 @@ public class ExampleMod {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="code" size="sm">
+              <Button 
+                variant="code" 
+                size="sm"
+                onClick={() => {
+                  console.log("💻 CodeEditor: AI Assist requested");
+                  // TODO: Implement AI assistance
+                }}
+              >
                 <Zap className="w-3 h-3" />
                 AI Assist
               </Button>
-              <Button variant="code" size="sm">
+              <Button 
+                variant="code" 
+                size="sm"
+                onClick={() => {
+                  console.log("💻 CodeEditor: Save requested");
+                  // TODO: Implement save functionality
+                }}
+              >
                 <Save className="w-3 h-3" />
                 Save
               </Button>
@@ -145,11 +160,25 @@ public class ExampleMod {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="code" size="sm">
+              <Button 
+                variant="code" 
+                size="sm"
+                onClick={() => {
+                  console.log("💻 CodeEditor: Build & Test requested");
+                  // TODO: Implement build & test
+                }}
+              >
                 <Play className="w-3 h-3" />
                 Build & Test
               </Button>
-              <Button variant="code" size="sm">
+              <Button 
+                variant="code" 
+                size="sm"
+                onClick={() => {
+                  console.log("💻 CodeEditor: Export requested");
+                  // TODO: Implement export
+                }}
+              >
                 <Download className="w-3 h-3" />
                 Export
               </Button>

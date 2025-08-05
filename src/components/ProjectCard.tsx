@@ -11,6 +11,8 @@ interface ProjectCardProps extends Omit<Project, 'user_id' | 'mod_id' | 'descrip
 }
 
 export function ProjectCard({ id, name, platform, minecraft_version, updated_at, status, onStatusUpdate, onDelete }: ProjectCardProps) {
+  console.log("🃏 ProjectCard: Rendering project", { id, name, platform, status });
+  
   const navigate = useNavigate();
   const getPlatformColor = (platform: string) => {
     switch (platform) {
@@ -71,21 +73,41 @@ export function ProjectCard({ id, name, platform, minecraft_version, updated_at,
             variant="hero" 
             size="sm" 
             className="flex-1"
-            onClick={() => navigate(`/project/${id}`)}
+            onClick={() => {
+              console.log("🃏 ProjectCard: Opening project", { id, name });
+              navigate(`/project/${id}`);
+            }}
           >
             <Play className="w-3 h-3" />
             Open
           </Button>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              console.log("🃏 ProjectCard: Git action requested", { id });
+              // TODO: Implement git integration
+            }}
+          >
             <GitBranch className="w-3 h-3" />
           </Button>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              console.log("🃏 ProjectCard: Settings requested", { id });
+              // TODO: Implement project settings
+            }}
+          >
             <Settings className="w-3 h-3" />
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => onDelete?.(id)}
+            onClick={() => {
+              console.log("🃏 ProjectCard: Delete requested", { id, name });
+              onDelete?.(id);
+            }}
             className="text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="w-3 h-3" />

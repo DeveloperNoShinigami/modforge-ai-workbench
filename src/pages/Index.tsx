@@ -26,10 +26,19 @@ import {
 } from "lucide-react";
 
 const Index = () => {
+  console.log("🏠 Index: Dashboard loading...");
+  
   const [currentTier, setCurrentTier] = useState<'free' | 'junior' | 'senior'>('free');
   const { projects, loading, fetchProjects, updateProjectStatus, deleteProject } = useProjects();
   const { user } = useAuth();
   const { toast } = useToast();
+
+  console.log("🏠 Index: State", { 
+    hasUser: !!user, 
+    projectsCount: projects.length, 
+    loading, 
+    currentTier 
+  });
 
   const features = [
     {

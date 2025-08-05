@@ -32,15 +32,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  console.log("🔐 AuthProvider: Initializing authentication...");
+
   useEffect(() => {
+    console.log("🔐 AuthProvider: Setting up auth listeners...");
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("🔐 AuthProvider: Auth state changed", { event, hasSession: !!session, userId: session?.user?.id });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
         if (event === 'SIGNED_IN') {
+          console.log("✅ AuthProvider: User signed in successfully");
           toast({
             title: "Welcome!",
             description: "You've been successfully signed in.",
@@ -50,13 +56,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     // Check for existing session
+    console.log("🔐 AuthProvider: Checking for existing session...");
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("🔐 AuthProvider: Session check complete", { hasSession: !!session, userId: session?.user?.id });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("🔐 AuthProvider: Cleaning up auth listeners");
+      subscription.unsubscribe();
+    };
   }, [toast]);
 
   const signInWithGoogle = async () => {

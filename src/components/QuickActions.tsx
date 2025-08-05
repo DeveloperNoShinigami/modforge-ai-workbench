@@ -11,16 +11,22 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ onProjectCreated }: QuickActionsProps) {
+  console.log("⚡ QuickActions: Component loaded");
+  
   const { projects } = useProjects();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleQuickAction = (actionType: string) => {
+    console.log("⚡ QuickActions: Action clicked", { actionType, projectsCount: projects.length });
+    
     switch (actionType) {
       case 'recent':
         if (projects.length > 0) {
+          console.log("⚡ QuickActions: Opening recent project", projects[0].id);
           navigate(`/project/${projects[0].id}`);
         } else {
+          console.log("⚡ QuickActions: No recent projects found");
           toast({
             title: "No recent projects",
             description: "Create a new project to get started",
@@ -29,24 +35,28 @@ export function QuickActions({ onProjectCreated }: QuickActionsProps) {
         }
         break;
       case 'ai':
+        console.log("⚡ QuickActions: AI Generate requested");
         toast({
           title: "AI Generate",
           description: "Create a project first, then use AI in the editor"
         });
         break;
       case 'templates':
+        console.log("⚡ QuickActions: Templates requested");
         toast({
           title: "Templates",
           description: "Coming soon! Browse example mod templates"
         });
         break;
       case 'import':
+        console.log("⚡ QuickActions: GitHub import requested");
         toast({
           title: "GitHub Import",
           description: "Coming soon! Import mods from GitHub repositories"
         });
         break;
       case 'deploy':
+        console.log("⚡ QuickActions: Deploy requested");
         toast({
           title: "Deploy",
           description: "Coming soon! Publish your mods to CurseForge and Modrinth"

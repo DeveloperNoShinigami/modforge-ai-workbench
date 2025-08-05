@@ -56,7 +56,10 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log("🛠️ ProjectCreationDialog: Submitting form", formData);
+    
     if (!formData.name || !formData.platform || !formData.minecraft_version) {
+      console.log("❌ ProjectCreationDialog: Missing required fields");
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -68,6 +71,7 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
     setLoading(true);
     
     try {
+      console.log("🛠️ ProjectCreationDialog: Creating project...");
       const project = await createProject({
         name: formData.name,
         description: formData.description || undefined,
@@ -76,6 +80,7 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
       });
       
       if (project) {
+        console.log("✅ ProjectCreationDialog: Project created successfully", project.id);
         setFormData({
           name: "",
           description: "",
@@ -88,7 +93,7 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
       }
       
     } catch (error) {
-      // Error already handled in createProject
+      console.error("❌ ProjectCreationDialog: Failed to create project", error);
     } finally {
       setLoading(false);
     }
