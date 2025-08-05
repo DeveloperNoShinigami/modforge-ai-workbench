@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Play, Save, Zap, Download, Loader2, FileCode, Folder, Plus } from "lucide-react";
+import { ArrowLeft, Play, Save, Zap, Download, Loader2, FileCode, Folder, Plus, Upload } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
 import { useAI } from "@/hooks/useAI";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { BuildConsole } from "@/components/BuildConsole";
 
 export default function ProjectEditor() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,6 +31,7 @@ export default function ProjectEditor() {
     saveFile,
     updateFileContent,
     createNewFile,
+    uploadFile,
     buildProject,
     exportProject
   } = useProjectEditor(project);
@@ -77,6 +79,17 @@ export default function ProjectEditor() {
   const handleSave = () => {
     if (currentFile) {
       saveFile(currentFile);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach(file => {
+        uploadFile(file);
+      });
+      // Reset the input
+      event.target.value = '';
     }
   };
 
@@ -201,6 +214,25 @@ export default function ProjectEditor() {
                     <Plus className="w-3 h-3" />
                     <span className="text-xs">New File</span>
                   </Button>
+                  
+                  <label className="w-full">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".java,.json,.mcmeta,.properties"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start gap-2 h-auto p-2 mt-1"
+                      type="button"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span className="text-xs">Upload Files</span>
+                    </Button>
+                  </label>
                 </div>
               </ScrollArea>
             </CardContent>
@@ -244,71 +276,88 @@ export default function ProjectEditor() {
             </CardContent>
           </Card>
 
-          {/* AI Assistant Panel */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Zap className="w-4 h-4" />
-                AI Assistant
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Describe what you want to add to this file..."
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  rows={3}
-                  className="text-sm"
-                />
-                <Button
-                  variant="tier"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleAIGenerate}
-                  disabled={!aiPrompt.trim() || aiLoading}
-                >
-                  {aiLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
+          {/* Right Panel: AI Assistant & Build Console */}
+          <Card className="lg:col-span-2 overflow-hidden">
+            <div className="h-full flex flex-col">
+              {/* AI Assistant Panel */}
+              <div className="flex-1 border-b border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
                     <Zap className="w-4 h-4" />
-                  )}
-                  Generate Code
-                </Button>
-              </div>
+                    AI Assistant
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pb-4">
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Describe what you want to add to this file..."
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      rows={3}
+                      className="text-sm"
+                    />
+                    <Button
+                      variant="tier"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleAIGenerate}
+                      disabled={!aiPrompt.trim() || aiLoading}
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Zap className="w-4 h-4" />
+                      )}
+                      Generate Code
+                    </Button>
+                  </div>
 
-              <Separator />
+                  <Separator />
 
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Quick Actions:</p>
-                <div className="space-y-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-xs h-auto p-2"
-                    onClick={() => setAiPrompt("Add a new custom block with special properties")}
-                  >
-                    Add Custom Block
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-xs h-auto p-2"
-                    onClick={() => setAiPrompt("Create a new item with special abilities")}
-                  >
-                    Add Custom Item
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-xs h-auto p-2"
-                    onClick={() => setAiPrompt("Generate a crafting recipe for this item")}
-                  >
-                    Add Crafting Recipe
-                  </Button>
-                </div>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Quick Actions:</p>
+                    <div className="space-y-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs h-auto p-2"
+                        onClick={() => setAiPrompt("Add a new custom block with special properties")}
+                      >
+                        Add Custom Block
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs h-auto p-2"
+                        onClick={() => setAiPrompt("Create a new item with special abilities")}
+                      >
+                        Add Custom Item
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-xs h-auto p-2"
+                        onClick={() => setAiPrompt("Generate a crafting recipe for this item")}
+                      >
+                        Add Crafting Recipe
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
               </div>
-            </CardContent>
+              
+              {/* Build Console */}
+              <div className="flex-1">
+                <BuildConsole 
+                  isBuilding={loading}
+                  onBuild={buildProject}
+                  onTest={async () => {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return true;
+                  }}
+                />
+              </div>
+            </div>
           </Card>
         </div>
       </div>

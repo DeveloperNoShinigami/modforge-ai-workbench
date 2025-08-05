@@ -179,6 +179,40 @@ side="BOTH"`,
     });
   };
 
+  const uploadFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const fileType = getFileType(file.name);
+      
+      if (fileType) {
+        createNewFile(file.name, fileType, content);
+        toast({
+          title: "File uploaded",
+          description: `${file.name} has been uploaded successfully`
+        });
+      } else {
+        toast({
+          title: "Unsupported file type",
+          description: "Only .java, .json, .mcmeta, and .properties files are supported",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const getFileType = (filename: string): ProjectFile['type'] | null => {
+    const ext = filename.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'java': return 'java';
+      case 'json': return 'json';
+      case 'mcmeta': return 'mcmeta';
+      case 'properties': return 'properties';
+      default: return null;
+    }
+  };
+
   const buildProject = async () => {
     if (!project) return false;
     
@@ -247,6 +281,7 @@ side="BOTH"`,
     saveFile,
     updateFileContent,
     createNewFile,
+    uploadFile,
     buildProject,
     exportProject
   };
