@@ -10,17 +10,24 @@ import { useAI } from "@/hooks/useAI";
 interface AIAssistantProps {
   currentTier: 'free' | 'junior' | 'senior';
   onCodeGenerated?: (code: string, filename: string) => void;
+  projectId?: string;
 }
 
-export function AIAssistant({ currentTier, onCodeGenerated }: AIAssistantProps) {
+export function AIAssistant({ currentTier, onCodeGenerated, projectId }: AIAssistantProps) {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState<string | null>(null);
   const { generateCode, loading } = useAI();
+  
   const handleSubmit = async (promptText?: string) => {
     const textToUse = promptText || prompt;
     if (!textToUse.trim()) return;
     
-    const result = await generateCode(textToUse);
+    if (!projectId) {
+      setResponse("Please create a project first, then open it to use AI code generation!");
+      return;
+    }
+    
+    const result = await generateCode(textToUse, projectId);
     if (result) {
       setResponse(result.explanation);
       onCodeGenerated?.(result.code, result.filename);

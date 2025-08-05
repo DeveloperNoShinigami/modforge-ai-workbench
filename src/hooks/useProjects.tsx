@@ -87,6 +87,61 @@ export function useProjects() {
     }
   };
 
+  const createProject = async (projectData: {
+    name: string;
+    description?: string;
+    platform: 'forge' | 'fabric' | 'quilt' | 'neoforge';
+    minecraft_version: string;
+  }) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create projects",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    try {
+      const mod_id = projectData.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([
+          {
+            ...projectData,
+            mod_id,
+            user_id: user.id,
+            status: 'active'
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const newProject = data as Project;
+      setProjects(prev => [newProject, ...prev]);
+      
+      toast({
+        title: "Project created!",
+        description: `${projectData.name} is ready for development`
+      });
+
+      return newProject;
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast({
+        title: "Failed to create project",
+        description: "Please try again",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   const deleteProject = async (projectId: string) => {
     try {
       const { error } = await supabase
@@ -122,6 +177,7 @@ export function useProjects() {
     projects,
     loading,
     fetchProjects,
+    createProject,
     updateProjectStatus,
     deleteProject
   };

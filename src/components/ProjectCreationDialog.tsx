@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useProjects } from "@/hooks/useProjects";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProjectCreationDialogProps {
@@ -26,7 +25,7 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
     mod_id: ""
   });
   
-  const { user } = useAuth();
+  const { createProject } = useProjects();
   const { toast } = useToast();
 
   const platforms = [
@@ -57,10 +56,10 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
+    if (!formData.name || !formData.platform || !formData.minecraft_version) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to create projects",
+        title: "Missing information",
+        description: "Please fill in all required fields",
         variant: "destructive"
       });
       return;
@@ -69,50 +68,27 @@ export function ProjectCreationDialog({ onProjectCreated }: ProjectCreationDialo
     setLoading(true);
     
     try {
-      const { error } = await supabase.from('projects').insert({
-        user_id: user.id,
+      const project = await createProject({
         name: formData.name,
-        description: formData.description,
-        platform: formData.platform,
-        minecraft_version: formData.minecraft_version,
-        mod_id: formData.mod_id
+        description: formData.description || undefined,
+        platform: formData.platform as 'forge' | 'fabric' | 'quilt' | 'neoforge',
+        minecraft_version: formData.minecraft_version
       });
-
-      if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: "Project already exists",
-            description: "A project with this name already exists",
-            variant: "destructive"
-          });
-        } else {
-          throw error;
-        }
-        return;
+      
+      if (project) {
+        setFormData({
+          name: "",
+          description: "",
+          platform: "",
+          minecraft_version: "",
+          mod_id: ""
+        });
+        setOpen(false);
+        onProjectCreated?.();
       }
-
-      toast({
-        title: "Project created successfully!",
-        description: `${formData.name} is ready for development`
-      });
-
-      setFormData({
-        name: "",
-        description: "",
-        platform: "",
-        minecraft_version: "",
-        mod_id: ""
-      });
-      setOpen(false);
-      onProjectCreated?.();
       
     } catch (error) {
-      console.error('Error creating project:', error);
-      toast({
-        title: "Failed to create project",
-        description: "Please try again later",
-        variant: "destructive"
-      });
+      // Error already handled in createProject
     } finally {
       setLoading(false);
     }
