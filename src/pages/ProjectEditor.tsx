@@ -17,6 +17,7 @@ import {
   Zap,
   GitBranch
 } from "lucide-react";
+import { AIAssistant } from "@/components/AIAssistant";
 
 export default function ProjectEditor() {
   console.log("🎮 ProjectEditor: Loading project editor...");
@@ -57,6 +58,11 @@ export default function ProjectEditor() {
   const handleBuild = () => {
     // TODO: Implement build functionality
     console.log("Building project...");
+  };
+
+  const handleCodeGenerated = (code: string, filename: string, fileType: string) => {
+    // TODO: Create new file or update existing file with generated code
+    console.log("Code generated:", { code, filename, fileType });
   };
 
   if (!project) {
@@ -171,9 +177,9 @@ export default function ProjectEditor() {
                     {unsavedChanges && <span className="text-accent">*</span>}
                   </CardTitle>
                   <div className="flex items-center gap-2">
-                    <Button variant="code" size="sm">
+                    <Button variant="code" size="sm" disabled>
                       <Zap className="w-3 h-3 mr-1" />
-                      AI Assist
+                      AI Assist (See Sidebar)
                     </Button>
                   </div>
                 </div>
@@ -202,28 +208,19 @@ export default function ProjectEditor() {
           <div className="col-span-3">
             <div className="space-y-6">
               {/* AI Assistant */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-accent" />
-                    AI Assistant
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">
-                      AI-powered code generation and assistance
-                    </div>
-                    <Button variant="tier" size="sm" className="w-full">
-                      <Zap className="w-4 h-4 mr-2" />
-                      Generate Code
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full">
-                      Review Code
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <AIAssistant
+                currentTier="junior"
+                projectId={projectId}
+                currentFile={selectedFile ? {
+                  id: selectedFile.id,
+                  name: selectedFile.file_name,
+                  type: selectedFile.file_type as 'java' | 'json' | 'mcmeta' | 'properties' | 'toml' | 'bat' | 'sh' | 'md' | 'gitignore' | 'gradle',
+                  content: selectedFile.file_content,
+                  path: selectedFile.file_path,
+                  modified: Boolean(unsavedChanges)
+                } : undefined}
+                onCodeGenerated={handleCodeGenerated}
+              />
               
               {/* Build Console */}
               <Card>

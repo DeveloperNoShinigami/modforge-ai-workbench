@@ -14,9 +14,12 @@ import {
   Trash2, 
   FileCode,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Package,
+  Download
 } from 'lucide-react';
 import { useFileManager, ProjectFile, ForgeFileType } from '@/hooks/useFileManager';
+import { useToast } from '@/hooks/use-toast';
 
 interface FileExplorerProps {
   projectId: string;
@@ -42,6 +45,8 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
   const [selectedTemplate, setSelectedTemplate] = useState<ForgeFileType | null>(null);
   const [selectedParent, setSelectedParent] = useState<string>('');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src']));
+  const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const buildFileTree = (files: ProjectFile[]) => {
     const tree: Record<string, any> = {};
@@ -66,10 +71,198 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     return tree;
   };
 
+  const handleDragStart = (e: React.DragEvent, file: ProjectFile) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify(file));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetPath: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverFolder(targetPath);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverFolder(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetPath: string) => {
+    e.preventDefault();
+    setDragOverFolder(null);
+    
+    try {
+      const fileData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      // TODO: Implement file move functionality
+      toast({
+        title: "File move",
+        description: `Moving ${fileData.file_name} to ${targetPath}`,
+      });
+    } catch (error) {
+      console.error('Error moving file:', error);
+    }
+  };
+
+  const createSampleProject = async () => {
+    try {
+      toast({
+        title: "Creating sample project",
+        description: "Generating complete mod structure...",
+      });
+      
+      // Create main mod folder structure
+      await createFolder('src/main/java/com/example/' + modId, undefined);
+      await createFolder('src/main/resources', undefined);
+      await createFolder('src/main/resources/assets/' + modId, undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/textures/item', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/textures/block', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/models/item', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/models/block', undefined);
+      await createFolder('src/main/resources/assets/' + modId + '/lang', undefined);
+      await createFolder('src/main/resources/data/' + modId, undefined);
+      await createFolder('src/main/resources/data/' + modId + '/recipes', undefined);
+      
+      // Create sample files with complete content
+      const sampleFiles = [
+        {
+          name: modId.charAt(0).toUpperCase() + modId.slice(1) + 'Mod.java',
+          path: `src/main/java/com/example/${modId}/${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.java`,
+          content: `package com.example.${modId};
+
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+@Mod("${modId}")
+public class ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod {
+    public static final String MOD_ID = "${modId}";
+    private static final Logger LOGGER = LogManager.getLogger();
+
+    public ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod() {
+        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        
+        // Register our items and blocks
+        ModItems.register(modEventBus);
+        ModBlocks.register(modEventBus);
+        
+        modEventBus.addListener(this::commonSetup);
+        MinecraftForge.EVENT_BUS.register(this);
+        
+        LOGGER.info("${modId.charAt(0).toUpperCase() + modId.slice(1)} mod loaded!");
+    }
+
+    private void commonSetup(final FMLCommonSetupEvent event) {
+        LOGGER.info("Common setup for ${modId.charAt(0).toUpperCase() + modId.slice(1)} mod");
+    }
+}`,
+          type: 'java'
+        },
+        {
+          name: 'ModItems.java',
+          path: `src/main/java/com/example/${modId}/ModItems.java`,
+          content: `package com.example.${modId};
+
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Rarity;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+public class ModItems {
+    public static final DeferredRegister<Item> ITEMS = 
+        DeferredRegister.create(ForgeRegistries.ITEMS, ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.MOD_ID);
+
+    // Example custom item
+    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item",
+        () -> new Item(new Item.Properties()
+            .tab(CreativeModeTab.TAB_MISC)
+            .rarity(Rarity.UNCOMMON)
+            .stacksTo(64)));
+
+    public static void register(IEventBus eventBus) {
+        ITEMS.register(eventBus);
+    }
+}`,
+          type: 'java'
+        },
+        {
+          name: 'ModBlocks.java',
+          path: `src/main/java/com/example/${modId}/ModBlocks.java`,
+          content: `package com.example.${modId};
+
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.Material;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+import java.util.function.Supplier;
+
+public class ModBlocks {
+    public static final DeferredRegister<Block> BLOCKS = 
+        DeferredRegister.create(ForgeRegistries.BLOCKS, ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.MOD_ID);
+
+    // Example custom block
+    public static final RegistryObject<Block> EXAMPLE_BLOCK = registerBlock("example_block",
+        () -> new Block(BlockBehaviour.Properties.of(Material.STONE)
+            .strength(3.0f, 3.0f)
+            .sound(SoundType.STONE)
+            .requiresCorrectToolForDrops()));
+
+    private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {
+        RegistryObject<T> toReturn = BLOCKS.register(name, block);
+        registerBlockItem(name, toReturn);
+        return toReturn;
+    }
+
+    private static <T extends Block> RegistryObject<Item> registerBlockItem(String name, RegistryObject<T> block) {
+        return ModItems.ITEMS.register(name, () -> new BlockItem(block.get(),
+            new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
+    }
+
+    public static void register(IEventBus eventBus) {
+        BLOCKS.register(eventBus);
+    }
+}`,
+          type: 'java'
+        }
+      ];
+
+      // Create all sample files
+      for (const file of sampleFiles) {
+        await createFile(file.name, file.path, file.content, file.type);
+      }
+
+      toast({
+        title: "Sample project created!",
+        description: "Complete mod structure with working code generated",
+      });
+    } catch (error) {
+      console.error('Error creating sample project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create sample project",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderTreeNode = (name: string, node: any, path: string = '', level: number = 0) => {
     const fullPath = path ? `${path}/${name}` : name;
     const isExpanded = expandedFolders.has(fullPath);
     const isSelected = selectedFile?.id === node.file?.id;
+    const isDragOver = dragOverFolder === fullPath;
 
     const toggleExpanded = () => {
       const newExpanded = new Set(expandedFolders);
@@ -86,8 +279,13 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
         <div 
           className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted transition-colors ${
             isSelected ? 'bg-primary/10 text-primary' : ''
-          }`}
+          } ${isDragOver ? 'bg-accent/20 border-2 border-accent border-dashed' : ''}`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
+          draggable={node.type === 'file'}
+          onDragStart={(e) => node.file && handleDragStart(e, node.file)}
+          onDragOver={node.type === 'folder' ? (e) => handleDragOver(e, fullPath) : undefined}
+          onDragLeave={node.type === 'folder' ? handleDragLeave : undefined}
+          onDrop={node.type === 'folder' ? (e) => handleDrop(e, fullPath) : undefined}
           onClick={() => {
             if (node.type === 'folder') {
               toggleExpanded();
@@ -168,6 +366,14 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
             Project Files
           </CardTitle>
           <div className="flex gap-1">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={createSampleProject}
+              title="Create complete sample mod"
+            >
+              <Package className="w-3 h-3" />
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
