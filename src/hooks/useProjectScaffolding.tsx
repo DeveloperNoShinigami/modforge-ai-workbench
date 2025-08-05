@@ -20,20 +20,21 @@ export function useProjectScaffolding() {
     projectName: string,
     platform: string,
     minecraftVersion: string,
-    description?: string
+    description?: string,
+    projectId?: string
   ): Promise<ProjectStructure | null> => {
     console.log("🏗️ Creating project:", { projectName, platform, minecraftVersion });
     setLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('project-scaffolding', {
-        body: { projectName, platform, minecraftVersion, description }
+        body: { projectName, platform, minecraftVersion, description, projectId }
       });
 
       if (error) throw new Error(error.message);
 
       toast({
-        title: "Project created successfully!",
+        title: "Project scaffolded successfully!",
         description: `${projectName} scaffolded with ${data.files.length} files`
       });
 
@@ -41,7 +42,7 @@ export function useProjectScaffolding() {
     } catch (error) {
       console.error('Project scaffolding error:', error);
       toast({
-        title: "Failed to create project",
+        title: "Failed to scaffold project",
         description: "Please check your project configuration",
         variant: "destructive"
       });

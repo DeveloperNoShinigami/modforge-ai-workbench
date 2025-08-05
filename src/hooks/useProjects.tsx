@@ -129,10 +129,31 @@ export function useProjects() {
       const newProject = data as Project;
       setProjects(prev => [newProject, ...prev]);
       
-      toast({
-        title: "Project created!",
-        description: `${projectData.name} is ready for development`
+      // Now scaffold the project files
+      const { data: scaffoldData, error: scaffoldError } = await supabase.functions.invoke('project-scaffolding', {
+        body: { 
+          projectName: projectData.name,
+          platform: projectData.platform,
+          minecraftVersion: projectData.minecraft_version,
+          description: projectData.description,
+          projectId: newProject.id
+        }
       });
+
+      if (scaffoldError) {
+        console.error('Scaffolding error:', scaffoldError);
+        // Don't fail the entire creation if scaffolding fails
+        toast({
+          title: "Project created with limited scaffolding",
+          description: "You can manually create files using the IDE",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Project created and scaffolded!",
+          description: `${projectData.name} is ready with ${scaffoldData.files?.length || 0} files`
+        });
+      }
 
       return newProject;
     } catch (error) {

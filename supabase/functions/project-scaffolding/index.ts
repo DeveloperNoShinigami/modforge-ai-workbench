@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,15 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const { projectName, platform, minecraftVersion, description } = await req.json();
-    console.log("🏗️ Project Scaffolding:", { projectName, platform, minecraftVersion });
+    const { projectName, platform, minecraftVersion, description, projectId } = await req.json();
+    console.log("🏗️ Project Scaffolding:", { projectName, platform, minecraftVersion, projectId });
 
     if (!projectName || !platform || !minecraftVersion) {
       throw new Error('Project name, platform, and Minecraft version are required');
     }
 
+    // Initialize Supabase client if projectId is provided
+    let supabase = null;
+    if (projectId) {
+      supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+    }
+
     // Generate comprehensive project structure
-    const generateProjectStructure = (projectName: string, platform: string, mcVersion: string, description?: string) => {
+    const generateProjectStructure = async (projectName: string, platform: string, mcVersion: string, description?: string) => {
       const normalizedName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '');
       const packagePath = `com/yourname/${normalizedName}`;
       
@@ -83,6 +93,74 @@ serve(async (req) => {
         projectFiles['src/main/resources/quilt.mod.json'] = generateQuiltModJson(normalizedName, description);
       }
 
+      // Store files in database if projectId provided
+      if (supabase && projectId) {
+        console.log("🏗️ Storing files in database for project:", projectId);
+        
+        const fileInserts = Object.entries(projectFiles).map(([filePath, content]) => {
+          const fileName = filePath.split('/').pop() || filePath;
+          const parentPath = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+          
+          return {
+            project_id: projectId,
+            file_path: filePath,
+            file_name: fileName,
+            file_content: content,
+            file_type: getFileType(fileName),
+            is_directory: false,
+            parent_path: parentPath || null
+          };
+        });
+
+        // Also create directory entries
+        const directories = new Set<string>();
+        Object.keys(projectFiles).forEach(filePath => {
+          const parts = filePath.split('/');
+          for (let i = 1; i < parts.length; i++) {
+            const dirPath = parts.slice(0, i).join('/');
+            if (dirPath) directories.add(dirPath);
+          }
+        });
+
+        const dirInserts = Array.from(directories).map(dirPath => {
+          const dirName = dirPath.split('/').pop() || dirPath;
+          const parentPath = dirPath.includes('/') ? dirPath.substring(0, dirPath.lastIndexOf('/')) : '';
+          
+          return {
+            project_id: projectId,
+            file_path: dirPath,
+            file_name: dirName,
+            file_content: '',
+            file_type: 'folder',
+            is_directory: true,
+            parent_path: parentPath || null
+          };
+        });
+
+        // Insert directories first, then files
+        if (dirInserts.length > 0) {
+          const { error: dirError } = await supabase
+            .from('project_files')
+            .insert(dirInserts);
+          
+          if (dirError) {
+            console.error("Error inserting directories:", dirError);
+          }
+        }
+
+        if (fileInserts.length > 0) {
+          const { error: fileError } = await supabase
+            .from('project_files')
+            .insert(fileInserts);
+          
+          if (fileError) {
+            console.error("Error inserting files:", fileError);
+          }
+        }
+
+        console.log(`🏗️ Created ${dirInserts.length} directories and ${fileInserts.length} files`);
+      }
+
       return {
         files: Object.keys(projectFiles),
         projectStructure: projectFiles,
@@ -96,7 +174,7 @@ serve(async (req) => {
       };
     };
 
-    const projectStructure = generateProjectStructure(projectName, platform, minecraftVersion, description);
+    const projectStructure = await generateProjectStructure(projectName, platform, minecraftVersion, description);
     
     const scaffoldResult = {
       success: true,
@@ -132,6 +210,22 @@ serve(async (req) => {
   }
 });
 
+function getFileType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'java': return 'java';
+    case 'json': return 'json';
+    case 'toml': return 'toml';
+    case 'properties': return 'properties';
+    case 'gradle': return 'gradle';
+    case 'mcmeta': return 'mcmeta';
+    case 'png': return 'image';
+    case 'md': return 'markdown';
+    case 'bat': case 'sh': return 'script';
+    default: return 'text';
+  }
+}
+
 function generateBuildGradle(platform: string, mcVersion: string, normalizedName: string): string {
   const templates = {
     forge: `plugins {
@@ -141,8 +235,8 @@ function generateBuildGradle(platform: string, mcVersion: string, normalizedName
 }
 
 version = '1.0.0'
-group = 'com.yourname.modname'
-archivesBaseName = 'modname'
+group = 'com.yourname.${normalizedName}'
+archivesBaseName = '${normalizedName}'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
@@ -154,7 +248,7 @@ minecraft {
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             mods {
-                modname {
+                ${normalizedName} {
                     source sourceSets.main
                 }
             }
@@ -200,229 +294,85 @@ dependencies {
     modImplementation "org.quiltmc.quilted-fabric-api:quilted-fabric-api:\${project.fabric_version}"
 }`,
     neoforge: `plugins {
-    id 'net.neoforged.gradle' version '7.0.80'
-    id 'maven-publish'
+    id 'net.neoforged.gradle' version '7.0.+'
 }
 
 version = '1.0.0'
-group = 'com.yourname.modname'
+group = 'com.yourname.${normalizedName}'
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 minecraft {
     mappings channel: 'official', version: '${mcVersion}'
+    runs {
+        client {
+            workingDirectory project.file('run')
+        }
+    }
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:\${neo_version}"
 }`
   };
 
   return templates[platform as keyof typeof templates] || templates.forge;
 }
 
-function generateGradleProperties(platform: string): string {
-  return `org.gradle.jvmargs=-Xmx3G
-org.gradle.daemon=false
-minecraft_version=${platform === 'neoforge' ? '1.20.4' : '1.20.1'}
+function generateGradleProperties(platform: string, mcVersion: string): string {
+  return `minecraft_version=${mcVersion}
 mod_version=1.0.0
 maven_group=com.yourname.modname
-loader_version=${platform === 'fabric' ? '0.14.24' : '0.19.3'}
-fabric_version=0.91.0+1.20.1`;
-}
+archives_base_name=modname
 
-function generateModsToml(projectName: string, description: string): string {
-  return `modLoader="javafml"
-loaderVersion="[47,)"
-license="MIT"
-
-[[mods]]
-modId="${projectName.toLowerCase()}"
-version="\${file.jarVersion}"
-displayName="${projectName}"
-description='''${description}'''
-
-[[dependencies.${projectName.toLowerCase()}]]
-modId="forge"
-mandatory=true
-versionRange="[47,)"
-ordering="NONE"
-side="BOTH"`;
-}
-
-function generateFabricModJson(projectName: string, description: string): string {
-  return JSON.stringify({
-    schemaVersion: 1,
-    id: projectName.toLowerCase(),
-    version: "${version}",
-    name: projectName,
-    description,
-    authors: ["Your Name"],
-    contact: {},
-    license: "MIT",
-    icon: "assets/modname/icon.png",
-    environment: "*",
-    entrypoints: {
-      main: [`com.${projectName.toLowerCase()}.${projectName}Mod`]
-    },
-    depends: {
-      fabricloader: ">=0.14.0",
-      minecraft: "~1.20.1",
-      java: ">=17",
-      "fabric-api": "*"
-    }
-  }, null, 2);
-}
-
-function generateQuiltModJson(projectName: string, description: string): string {
-  return JSON.stringify({
-    schema_version: 1,
-    quilt_loader: {
-      group: `com.${projectName.toLowerCase()}`,
-      id: projectName.toLowerCase(),
-      version: "${version}",
-      metadata: {
-        name: projectName,
-        description,
-        contributors: { "Your Name": "Owner" },
-        contact: {},
-        license: "MIT"
-      },
-      intermediate_mappings: "net.fabricmc:intermediary",
-      entrypoints: {
-        init: [`com.${projectName.toLowerCase()}.${projectName}Mod`]
-      },
-      depends: [
-        { id: "quilt_loader", version: ">=0.19.0" },
-        { id: "quilted_fabric_api", version: ">=7.0.0" },
-        { id: "minecraft", version: ">=1.20.0" }
-      ]
-    }
-  }, null, 2);
+${platform === 'fabric' || platform === 'quilt' ? `
+loader_version=0.14.+
+fabric_version=0.91.0+${mcVersion}
+` : ''}`;
 }
 
 function generateMainModClass(projectName: string, platform: string, normalizedName: string): string {
-  const templates = {
-    forge: `package com.${projectName.toLowerCase()};
+  if (platform === 'forge' || platform === 'neoforge') {
+    return `package com.yourname.${normalizedName};
 
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-@Mod("${projectName.toLowerCase()}")
+@Mod("${normalizedName}")
 public class ${projectName}Mod {
+    public static final String MODID = "${normalizedName}";
+    private static final Logger LOGGER = LogManager.getLogger();
+    
     public ${projectName}Mod() {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(this::setup);
         MinecraftForge.EVENT_BUS.register(this);
     }
-
+    
     private void setup(final FMLCommonSetupEvent event) {
-        // Mod setup code here
+        LOGGER.info("Hello from ${projectName}!");
     }
-}`,
-    fabric: `package com.${projectName.toLowerCase()};
+}`;
+  } else {
+    return `package com.yourname.${normalizedName};
 
 import net.fabricmc.api.ModInitializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ${projectName}Mod implements ModInitializer {
+    public static final String MODID = "${normalizedName}";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
+    
     @Override
     public void onInitialize() {
-        // Mod initialization code here
+        LOGGER.info("Hello from ${projectName}!");
     }
-}`,
-    quilt: `package com.${projectName.toLowerCase()};
-
-import org.quiltmc.loader.api.ModContainer;
-import org.quiltmc.qsl.base.api.entrypoint.ModInitializer;
-
-public class ${projectName}Mod implements ModInitializer {
-    @Override
-    public void onInitialize(ModContainer mod) {
-        // Mod initialization code here
-    }
-}`,
-    neoforge: `package com.${projectName.toLowerCase()};
-
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModLoadingContext;
-
-@Mod("${projectName.toLowerCase()}")
-public class ${projectName}Mod {
-    public ${projectName}Mod(IEventBus modEventBus) {
-        modEventBus.addListener(this::setup);
-    }
-
-    private void setup(final FMLCommonSetupEvent event) {
-        // Mod setup code here
-    }
-}`
-  };
-
-  return templates[platform as keyof typeof templates] || templates.forge;
-}
-
-// Additional generator functions for comprehensive project structure
-
-function generateGradleProperties(platform: string, mcVersion: string): string {
-  return `org.gradle.jvmargs=-Xmx3G
-org.gradle.daemon=false
-minecraft_version=${mcVersion}
-mod_version=1.0.0
-maven_group=com.yourname.modname
-loader_version=${platform === 'fabric' ? '0.14.24' : '0.19.3'}
-fabric_version=0.91.0+1.20.1`;
-}
-
-function generateGradlewScript(): string {
-  return `#!/bin/sh
-# Gradle wrapper script for Unix systems
-GRADLE_APP_NAME="Gradle"
-exec gradle "$@"`;
-}
-
-function generateGradlewBat(): string {
-  return `@echo off
-rem Gradle wrapper script for Windows
-gradle %*`;
-}
-
-function generateReadme(projectName: string, description?: string): string {
-  return `# ${projectName}
-
-${description || 'A Minecraft mod built with Forge'}
-
-## Building
-
-Run \`./gradlew build\` to build the mod.
-
-## Development
-
-Run \`./gradlew runClient\` to start a development client.
-
-## License
-
-This mod is licensed under MIT License.`;
-}
-
-function generateGitignore(): string {
-  return `# Build output
-build/
-.gradle/
-run/
-
-# IDE files
-.idea/
-*.iml
-*.ipr
-*.iws
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log`;
+}`;
+  }
 }
 
 function generateModItems(projectName: string, normalizedName: string): string {
@@ -432,12 +382,13 @@ import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import com.yourname.${normalizedName}.${projectName}Mod;
 
 public class ModItems {
-    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "${normalizedName}");
+    public static final DeferredRegister<Item> ITEMS = 
+        DeferredRegister.create(ForgeRegistries.ITEMS, ${projectName}Mod.MODID);
     
-    // Example item registration
-    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item", 
+    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item",
         () -> new Item(new Item.Properties()));
 }`;
 }
@@ -446,18 +397,21 @@ function generateModBlocks(projectName: string, normalizedName: string): string 
   return `package com.yourname.${normalizedName}.registry;
 
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.Material;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import com.yourname.${normalizedName}.${projectName}Mod;
 
 public class ModBlocks {
-    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, "${normalizedName}");
+    public static final DeferredRegister<Block> BLOCKS = 
+        DeferredRegister.create(ForgeRegistries.BLOCKS, ${projectName}Mod.MODID);
     
-    // Example block registration
-    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", 
-        () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
+    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block",
+        () -> new Block(Block.Properties.of(Material.METAL)
+            .strength(3.0f, 3.0f)
+            .sound(SoundType.METAL)));
 }`;
 }
 
@@ -467,27 +421,30 @@ function generateModEntities(projectName: string, normalizedName: string): strin
 import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
+import com.yourname.${normalizedName}.${projectName}Mod;
 
 public class ModEntities {
-    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, "${normalizedName}");
+    public static final DeferredRegister<EntityType<?>> ENTITIES = 
+        DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, ${projectName}Mod.MODID);
     
-    // Entity registrations will go here
+    // Register custom entities here
 }`;
 }
 
 function generateCommonEvents(projectName: string, normalizedName: string): string {
   return `package com.yourname.${normalizedName}.events;
 
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.event.entity.player.PlayerEvent;
+import com.yourname.${normalizedName}.${projectName}Mod;
 
-@Mod.EventBusSubscriber(modid = "${normalizedName}")
+@Mod.EventBusSubscriber(modid = ${projectName}Mod.MODID)
 public class CommonEvents {
     
     @SubscribeEvent
-    public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        // Handle player join events
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        ${projectName}Mod.LOGGER.info("Player {} logged in", event.getEntity().getName().getString());
     }
 }`;
 }
@@ -496,145 +453,240 @@ function generateModConfig(projectName: string, normalizedName: string): string 
   return `package com.yourname.${normalizedName}.config;
 
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 
 public class ModConfig {
-    public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
-    public static final ForgeConfigSpec SPEC;
+    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
     
-    // Example config option
-    public static final ForgeConfigSpec.BooleanValue EXAMPLE_SETTING;
+    public static final ForgeConfigSpec.BooleanValue EXAMPLE_SETTING = BUILDER
+        .comment("An example configuration setting")
+        .define("exampleSetting", true);
     
-    static {
-        EXAMPLE_SETTING = BUILDER
-            .comment("An example configuration setting")
-            .define("example_setting", true);
-        
-        SPEC = BUILDER.build();
+    public static final ForgeConfigSpec SPEC = BUILDER.build();
+    
+    public static void register() {
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SPEC);
     }
 }`;
 }
 
+function generateModsToml(normalizedName: string, description: string): string {
+  return `modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="${normalizedName}"
+version="\${version}"
+displayName="${normalizedName}"
+description='''
+${description}
+'''
+
+[[dependencies.${normalizedName}]]
+modId="forge"
+mandatory=true
+versionRange="[47,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.${normalizedName}]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.21)"
+ordering="NONE"
+side="BOTH"`;
+}
+
+function generateFabricModJson(normalizedName: string, description?: string): string {
+  return `{
+  "schemaVersion": 1,
+  "id": "${normalizedName}",
+  "version": "\${version}",
+  "name": "${normalizedName}",
+  "description": "${description || 'A Fabric mod'}",
+  "authors": ["Your Name"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/${normalizedName}/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.yourname.${normalizedName}.${normalizedName}Mod"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.14.0",
+    "fabric": "*",
+    "minecraft": "~1.20.1"
+  }
+}`;
+}
+
+function generateQuiltModJson(normalizedName: string, description?: string): string {
+  return `{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.yourname.${normalizedName}",
+    "id": "${normalizedName}",
+    "version": "\${version}",
+    "metadata": {
+      "name": "${normalizedName}",
+      "description": "${description || 'A Quilt mod'}",
+      "contributors": {
+        "Your Name": "Owner"
+      },
+      "contact": {},
+      "license": "MIT",
+      "icon": "assets/${normalizedName}/icon.png"
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "entrypoints": {
+      "init": "com.yourname.${normalizedName}.${normalizedName}Mod"
+    },
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=0.19.0"
+      },
+      {
+        "id": "quilted_fabric_api",
+        "versions": ">=7.0.0"
+      },
+      {
+        "id": "minecraft",
+        "versions": ">=1.20.1"
+      }
+    ]
+  }
+}`;
+}
+
 function generatePackMcmeta(): string {
-  return JSON.stringify({
-    pack: {
-      description: "Mod resources",
-      pack_format: 15
-    }
-  }, null, 2);
+  return `{
+  "pack": {
+    "description": "Resources for your mod",
+    "pack_format": 15,
+    "forge:resource_pack_format": 15,
+    "forge:data_pack_format": 12
+  }
+}`;
 }
 
 function generateLangFile(normalizedName: string): string {
-  return JSON.stringify({
-    [`item.${normalizedName}.example_item`]: "Example Item",
-    [`block.${normalizedName}.example_block`]: "Example Block",
-    [`itemGroup.${normalizedName}`]: "Example Mod"
-  }, null, 2);
+  return `{
+  "item.${normalizedName}.example_item": "Example Item",
+  "block.${normalizedName}.example_block": "Example Block",
+  "itemGroup.${normalizedName}": "${normalizedName} Items"
+}`;
 }
 
 function generateItemModel(): string {
-  return JSON.stringify({
-    parent: "item/generated",
-    textures: {
-      layer0: "mymod:item/example_item"
-    }
-  }, null, 2);
+  return `{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "mymod:item/example_item"
+  }
+}`;
 }
 
 function generateBlockModel(): string {
-  return JSON.stringify({
-    parent: "block/cube_all",
-    textures: {
-      all: "mymod:block/example_block"
-    }
-  }, null, 2);
+  return `{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "mymod:block/example_block"
+  }
+}`;
 }
 
 function generateBlockstate(): string {
-  return JSON.stringify({
-    variants: {
-      "": {
-        model: "mymod:block/example_block"
-      }
+  return `{
+  "variants": {
+    "": {
+      "model": "mymod:block/example_block"
     }
-  }, null, 2);
+  }
+}`;
 }
 
 function generateRecipe(normalizedName: string): string {
-  return JSON.stringify({
-    type: "minecraft:crafting_shaped",
-    pattern: [
-      "XXX",
-      "XYX",
-      "XXX"
-    ],
-    key: {
-      X: {
-        item: "minecraft:stone"
-      },
-      Y: {
-        item: "minecraft:diamond"
-      }
-    },
-    result: {
-      item: `${normalizedName}:example_item`,
-      count: 1
+  return `{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "minecraft:iron_ingot"
     }
-  }, null, 2);
+  },
+  "result": {
+    "item": "${normalizedName}:example_item",
+    "count": 1
+  }
+}`;
 }
 
 function generateLootTable(): string {
-  return JSON.stringify({
-    type: "minecraft:block",
-    pools: [
-      {
-        rolls: 1,
-        entries: [
-          {
-            type: "minecraft:item",
-            name: "mymod:example_block"
-          }
-        ]
-      }
-    ]
-  }, null, 2);
+  return `{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "mymod:example_block"
+        }
+      ]
+    }
+  ]
+}`;
 }
 
 function generateBlockTag(): string {
-  return JSON.stringify({
-    replace: false,
-    values: [
-      "mymod:example_block"
-    ]
-  }, null, 2);
+  return `{
+  "replace": false,
+  "values": [
+    "mymod:example_block"
+  ]
+}`;
 }
 
 function generateAdvancement(normalizedName: string): string {
-  return JSON.stringify({
-    display: {
-      icon: {
-        item: `${normalizedName}:example_item`
-      },
-      title: "Getting Started",
-      description: "Welcome to the mod!",
-      frame: "task",
-      show_toast: true,
-      announce_to_chat: true,
-      hidden: false
+  return `{
+  "display": {
+    "icon": {
+      "item": "${normalizedName}:example_item"
     },
-    criteria: {
-      has_item: {
-        trigger: "minecraft:inventory_changed",
-        conditions: {
-          items: [
-            {
-              items: [`${normalizedName}:example_item`]
-            }
-          ]
-        }
+    "title": {
+      "translate": "advancement.${normalizedName}.root"
+    },
+    "description": {
+      "translate": "advancement.${normalizedName}.root.desc"
+    },
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "get_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["${normalizedName}:example_item"]
+          }
+        ]
       }
-    },
-    requirements: [["has_item"]]
-  }, null, 2);
+    }
+  }
+}`;
 }
 
 function generateTestClass(projectName: string, normalizedName: string): string {
@@ -647,8 +699,175 @@ public class ModTests {
     
     @Test
     public void testModInitialization() {
-        // Test mod initialization
-        assertTrue(true, "Mod should initialize successfully");
+        // Add your tests here
+        assertTrue(true);
     }
 }`;
+}
+
+function generateReadme(projectName: string, description?: string): string {
+  return `# ${projectName}
+
+${description || 'A Minecraft mod'}
+
+## Features
+
+- Feature 1
+- Feature 2
+- Feature 3
+
+## Installation
+
+1. Install Minecraft Forge
+2. Download the mod .jar file
+3. Place it in your mods folder
+4. Launch Minecraft
+
+## Development
+
+This mod was created using ModForge AI Workbench.
+
+## License
+
+MIT License`;
+}
+
+function generateGitignore(): string {
+  return `# Gradle
+.gradle/
+build/
+out/
+classes/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.eclipse/
+.metadata/
+.project
+.classpath
+.settings/
+bin/
+
+# Visual Studio Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mod development
+run/
+logs/
+crash-reports/
+
+# Minecraft
+minecraft_server.*.jar
+server.properties
+eula.txt
+banned-*.json
+ops.json
+usercache.json
+usernamecache.json
+whitelist.json`;
+}
+
+function generateGradlewScript(): string {
+  return `#!/bin/sh
+
+# Gradle start up script for UNIX
+
+# Add default JVM options here
+DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+
+# Use the maximum available, or set MAX_FD != -1 to use that value
+MAX_FD="maximum"
+
+APP_NAME="Gradle"
+APP_BASE_NAME=\`basename "$0"\`
+
+# Locate Java
+if [ -n "$JAVA_HOME" ] ; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+        JAVACMD="$JAVA_HOME/jre/sh/java"
+    else
+        JAVACMD="$JAVA_HOME/bin/java"
+    fi
+    if [ ! -x "$JAVACMD" ] ; then
+        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
+    fi
+else
+    JAVACMD="java"
+    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH."
+fi
+
+exec "$JAVACMD" "$@"`;
+}
+
+function generateGradlewBat(): string {
+  return `@rem Gradle startup script for Windows
+
+@if "%DEBUG%" == "" @echo off
+@rem Set local scope for the variables with windows NT shell
+if "%OS%"=="Windows_NT" setlocal
+
+set DIRNAME=%~dp0
+if "%DIRNAME%" == "" set DIRNAME=.
+set APP_BASE_NAME=%~n0
+set APP_HOME=%DIRNAME%
+
+@rem Resolve any "." and ".." in APP_HOME to make it shorter.
+for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
+
+@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
+
+@rem Find java.exe
+if defined JAVA_HOME goto findJavaFromJavaHome
+
+set JAVA_EXE=java.exe
+%JAVA_EXE% -version >NUL 2>&1
+if "%ERRORLEVEL%" == "0" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+echo.
+
+goto fail
+
+:findJavaFromJavaHome
+set JAVA_HOME=%JAVA_HOME:"=%
+set JAVA_EXE=%JAVA_HOME%/bin/java.exe
+
+if exist "%JAVA_EXE%" goto execute
+
+echo.
+echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
+echo.
+
+:fail
+rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
+rem the _cmd_ return code in batch files.
+exit /b 1
+
+:execute
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+
+:end
+@rem End local scope for the variables with windows NT shell
+if "%ERRORLEVEL%"=="0" goto mainEnd
+
+:fail
+rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
+rem the _cmd_ return code in batch files.
+exit /b 1
+
+:mainEnd
+if "%OS%"=="Windows_NT" endlocal
+
+:omega`;
 }

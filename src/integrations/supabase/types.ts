@@ -53,6 +53,53 @@ export type Database = {
         }
         Relationships: []
       }
+      project_files: {
+        Row: {
+          created_at: string
+          file_content: string
+          file_name: string
+          file_path: string
+          file_type: string
+          id: string
+          is_directory: boolean | null
+          parent_path: string | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          file_content?: string
+          file_name: string
+          file_path: string
+          file_type?: string
+          id?: string
+          is_directory?: boolean | null
+          parent_path?: string | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          file_content?: string
+          file_name?: string
+          file_path?: string
+          file_type?: string
+          id?: string
+          is_directory?: boolean | null
+          parent_path?: string | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
