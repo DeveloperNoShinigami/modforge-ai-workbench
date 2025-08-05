@@ -99,68 +99,91 @@ However, I can provide a basic analysis:
 });
 
 async function callReviewAPI(code: string, filename: string, fileType: string, openAIKey?: string, openRouterKey?: string) {
-  const systemPrompt = `You are an expert code reviewer specializing in Minecraft modding and Java development.
+  const systemPrompt = `You are an expert code reviewer specializing in Minecraft modding, Java development, and software engineering best practices.
 
 Analyze the following ${fileType} file and provide a comprehensive review covering:
 1. Code quality and best practices
-2. Minecraft modding specific issues
-3. Potential bugs or improvements
-4. Performance considerations
-5. Security considerations
+2. Minecraft modding specific issues and recommendations
+3. Potential bugs, security issues, or improvements
+4. Performance considerations and optimizations
+5. Adherence to Java/Minecraft conventions
 
-Be constructive and specific in your feedback.`;
+Be constructive, specific, and provide actionable feedback. Focus on both technical correctness and modding best practices.`;
 
   let apiUrl = '';
-  let headers = {};
+  let headers: Record<string, string> = {};
   let model = '';
+  let requestBody: any = {};
 
-  if (openRouterKey) {
-    apiUrl = 'https://api.openrouter.ai/api/v1/chat/completions';
-    headers = {
-      'Authorization': `Bearer ${openRouterKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://modforge.ai',
-    };
-    model = 'anthropic/claude-3.5-sonnet';
-  } else if (openAIKey) {
+  if (openAIKey) {
+    console.log("🔍 Using OpenAI API for review");
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     headers = {
       'Authorization': `Bearer ${openAIKey}`,
       'Content-Type': 'application/json',
     };
-    model = 'gpt-4o';
+    model = 'gpt-4.1-2025-04-14';
+    requestBody = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Please review this ${fileType} file (${filename}):\n\n\`\`\`${fileType}\n${code}\n\`\`\`\n\nProvide detailed feedback on code quality, best practices, potential issues, and suggestions for improvement.` }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000,
+    };
+  } else if (openRouterKey) {
+    console.log("🔍 Using OpenRouter API for review");
+    apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = {
+      'Authorization': `Bearer ${openRouterKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://modforge.ai',
+      'X-Title': 'ModForge AI Workbench',
+    };
+    model = 'anthropic/claude-3-5-sonnet-20241022';
+    requestBody = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Please review this ${fileType} file (${filename}):\n\n\`\`\`${fileType}\n${code}\n\`\`\`\n\nProvide detailed feedback on code quality, best practices, potential issues, and suggestions for improvement.` }
+      ],
+      temperature: 0.3,
+      max_tokens: 2000,
+    };
   } else {
     throw new Error('No API key available');
   }
 
-  const reviewPrompt = `Please review this ${fileType} file (${filename}):
-
-\`\`\`${fileType}
-${code}
-\`\`\`
-
-Provide feedback on code quality, best practices, potential issues, and suggestions for improvement.`;
+  console.log("🔍 Making review API request to:", apiUrl.substring(0, 30) + "...");
+  console.log("🔍 Review model:", model);
 
   const response = await fetch(apiUrl, {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: reviewPrompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 1500,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
+  console.log("🔍 Review API Response status:", response.status);
+
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    const errorText = await response.text();
+    console.log("🔍 Review API Error response:", errorText);
+    throw new Error(`API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  console.log("🔍 Review API Response structure:", Object.keys(data));
+  
+  if (!data.choices || !data.choices[0]) {
+    console.log("🔍 Unexpected review API response structure:", JSON.stringify(data));
+    throw new Error('Invalid API response structure');
+  }
+
+  const content = data.choices[0].message.content;
+  console.log("🔍 AI Review content received (first 100 chars):", content.substring(0, 100));
+  
+  return content;
 }
 
 function generateTemplateReview(code: string, filename: string, fileType: string): string {

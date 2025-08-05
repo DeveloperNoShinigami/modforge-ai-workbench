@@ -103,78 +103,145 @@ serve(async (req) => {
 });
 
 async function callAIAPI(prompt: string, currentFile: any, projectContext: string, openAIKey?: string, openRouterKey?: string) {
-  const systemPrompt = `You are an expert Minecraft mod developer. Generate working Java code for Minecraft mods.
+  const systemPrompt = `You are an expert Minecraft mod developer specializing in Forge, Fabric, Quilt, and NeoForge modding.
 
-Context: ${projectContext || 'Minecraft mod project'}
-Current File: ${currentFile?.name || 'None'}
+Current Context: ${projectContext || 'Minecraft mod project'}
+Current File: ${currentFile?.name || 'None'} (Type: ${currentFile?.type || 'None'})
+${currentFile?.content ? `Current file content preview: ${currentFile.content.substring(0, 300)}...` : ''}
 
-Respond ONLY with valid JSON:
+Generate working, production-ready code for Minecraft mods. Consider:
+- Proper package structure and imports
+- Minecraft version compatibility
+- Best practices for the target mod loader
+- Error handling and performance
+- Proper registration and event handling
+
+Respond ONLY with valid JSON in this exact format:
 {
-  "code": "Java code here",
-  "explanation": "Brief explanation",
-  "filename": "SuggestedName.java",
+  "code": "Your generated code here",
+  "explanation": "Brief explanation of what the code does",
+  "filename": "SuggestedFileName.java",
   "fileType": "java"
 }`;
 
   let apiUrl = '';
-  let headers = {};
+  let headers: Record<string, string> = {};
   let model = '';
+  let requestBody: any = {};
 
-  if (openRouterKey) {
-    apiUrl = 'https://api.openrouter.ai/api/v1/chat/completions';
-    headers = {
-      'Authorization': `Bearer ${openRouterKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://modforge.ai',
-    };
-    model = 'anthropic/claude-3.5-sonnet';
-  } else if (openAIKey) {
+  if (openAIKey) {
+    console.log("🚀 Using OpenAI API");
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     headers = {
       'Authorization': `Bearer ${openAIKey}`,
       'Content-Type': 'application/json',
     };
-    model = 'gpt-4o';
-  } else {
-    throw new Error('No API key available');
-  }
-
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
+    model = 'gpt-4.1-2025-04-14';
+    requestBody = {
       model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
-    }),
+      max_tokens: 3000,
+    };
+  } else if (openRouterKey) {
+    console.log("🚀 Using OpenRouter API");
+    apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = {
+      'Authorization': `Bearer ${openRouterKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://modforge.ai',
+      'X-Title': 'ModForge AI Workbench',
+    };
+    model = 'anthropic/claude-3-5-sonnet-20241022';
+    requestBody = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 3000,
+    };
+  } else {
+    throw new Error('No API key available');
+  }
+
+  console.log("🚀 Making API request to:", apiUrl.substring(0, 30) + "...");
+  console.log("🚀 Request model:", model);
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody),
   });
 
+  console.log("🚀 API Response status:", response.status);
+  
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    const errorText = await response.text();
+    console.log("🚀 API Error response:", errorText);
+    throw new Error(`API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
+  console.log("🚀 API Response structure:", Object.keys(data));
+  
+  if (!data.choices || !data.choices[0]) {
+    console.log("🚀 Unexpected API response structure:", JSON.stringify(data));
+    throw new Error('Invalid API response structure');
+  }
+  
   const content = data.choices[0].message.content;
+  console.log("🚀 AI Content received (first 100 chars):", content.substring(0, 100));
   
   try {
-    return JSON.parse(content);
-  } catch {
+    const parsed = JSON.parse(content);
+    console.log("🚀 Successfully parsed JSON response");
+    return parsed;
+  } catch (parseError) {
+    console.log("🚀 Content is not JSON, creating structured response");
     // If not JSON, create structured response
     return {
       code: content,
       explanation: "Generated code based on your request",
-      filename: "Generated.java",
-      fileType: "java"
+      filename: generateFilename(prompt, currentFile),
+      fileType: determineFileType(prompt, currentFile)
     };
   }
 }
 
+function generateFilename(prompt: string, currentFile: any): string {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  if (lowerPrompt.includes('block')) return 'CustomBlock.java';
+  if (lowerPrompt.includes('item')) return 'CustomItem.java';
+  if (lowerPrompt.includes('entity')) return 'CustomEntity.java';
+  if (lowerPrompt.includes('recipe')) return 'custom_recipe.json';
+  if (lowerPrompt.includes('model')) return 'custom_model.json';
+  if (currentFile?.name) return currentFile.name.replace(/\.[^/.]+$/, "") + "Generated.java";
+  
+  return 'Generated.java';
+}
+
+function determineFileType(prompt: string, currentFile: any): string {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  if (lowerPrompt.includes('recipe') || lowerPrompt.includes('model') || lowerPrompt.includes('json')) return 'json';
+  if (lowerPrompt.includes('gradle') || lowerPrompt.includes('build')) return 'gradle';
+  if (lowerPrompt.includes('properties')) return 'properties';
+  if (currentFile?.type) return currentFile.type;
+  
+  return 'java';
+}
+
 function generateSmartTemplate(prompt: string, currentFile: any, projectContext: string) {
   const lowerPrompt = prompt.toLowerCase();
+  
+  // Only use templates as absolute fallback when AI is completely unavailable
+  console.log("🚀 WARNING: Using template generation (AI API unavailable)");
   
   if (lowerPrompt.includes('block')) {
     return {
@@ -192,8 +259,10 @@ public class CustomBlock extends Block {
             .sound(SoundType.STONE)
             .requiresCorrectToolForDrops());
     }
+    
+    // TODO: Add custom block functionality based on: ${prompt.substring(0, 50)}...
 }`,
-      explanation: "Generated a custom block class with basic properties",
+      explanation: "⚠️ Generated template block class (AI temporarily unavailable). This is a basic template that needs customization.",
       filename: "CustomBlock.java",
       fileType: "java"
     };
@@ -212,45 +281,33 @@ public class CustomItem extends Item {
             .stacksTo(64)
             .rarity(Rarity.COMMON));
     }
+    
+    // TODO: Add custom item functionality based on: ${prompt.substring(0, 50)}...
 }`,
-      explanation: "Generated a custom item class",
+      explanation: "⚠️ Generated template item class (AI temporarily unavailable). This is a basic template that needs customization.",
       filename: "CustomItem.java",
       fileType: "java"
     };
   }
 
-  if (lowerPrompt.includes('recipe')) {
-    return {
-      code: `{
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "###",
-    "#X#",
-    "###"
-  ],
-  "key": {
-    "#": {
-      "item": "minecraft:stone"
-    },
-    "X": {
-      "item": "minecraft:diamond"
-    }
-  },
-  "result": {
-    "item": "examplemod:custom_item",
-    "count": 1
-  }
-}`,
-      explanation: "Generated a crafting recipe JSON",
-      filename: "custom_recipe.json",
-      fileType: "json"
-    };
-  }
-
-  // Default template
+  // Default template with clear indication it's not AI-generated
   return {
-    code: generateFallbackCode(prompt),
-    explanation: `Generated template code for: ${prompt.substring(0, 100)}`,
+    code: `package com.example.mod;
+
+/**
+ * ⚠️ TEMPLATE CODE - AI temporarily unavailable
+ * Generated for: ${prompt.substring(0, 80)}...
+ * 
+ * This is a basic template that should be customized for your specific needs.
+ */
+public class GeneratedCode {
+    
+    public void customMethod() {
+        // TODO: Implement functionality for: ${prompt.substring(0, 50)}...
+        System.out.println("Custom code executed!");
+    }
+}`,
+    explanation: `⚠️ Generated template code (AI temporarily unavailable). Please customize this template based on your requirements: ${prompt.substring(0, 100)}`,
     filename: "GeneratedCode.java",
     fileType: "java"
   };
