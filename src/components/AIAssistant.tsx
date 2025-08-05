@@ -27,8 +27,10 @@ export function AIAssistant({ currentTier, onCodeGenerated, projectId }: AIAssis
       return;
     }
     
+    console.log("AI Assistant: Generating code for project:", projectId);
     const result = await generateCode(textToUse, projectId);
     if (result) {
+      console.log("AI Assistant: Code generated successfully:", result.filename);
       setResponse(result.explanation);
       onCodeGenerated?.(result.code, result.filename);
       setPrompt("");
@@ -52,7 +54,8 @@ export function AIAssistant({ currentTier, onCodeGenerated, projectId }: AIAssis
   ];
 
   return (
-    <Card className="bg-gradient-accent/5 border-accent/20">
+    <div className={projectId ? "h-full" : ""}>
+      <Card className={`${projectId ? "h-full border-0 shadow-none" : "bg-gradient-accent/5 border-accent/20"}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -127,6 +130,7 @@ export function AIAssistant({ currentTier, onCodeGenerated, projectId }: AIAssis
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

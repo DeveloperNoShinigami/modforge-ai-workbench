@@ -13,6 +13,7 @@ import { useAI } from "@/hooks/useAI";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { BuildConsole } from "@/components/BuildConsole";
+import { AIAssistant } from "@/components/AIAssistant";
 
 export default function ProjectEditor() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -36,7 +37,7 @@ export default function ProjectEditor() {
     exportProject
   } = useProjectEditor(project);
 
-  const [aiPrompt, setAiPrompt] = useState("");
+  const [currentTier] = useState<'free' | 'junior' | 'senior'>('free');
 
   useEffect(() => {
     if (!user) {
@@ -54,13 +55,9 @@ export default function ProjectEditor() {
     }
   }, [project, user, loading, navigate, toast]);
 
-  const handleAIGenerate = async () => {
-    if (!aiPrompt.trim()) return;
-    
-    const result = await generateCode(aiPrompt, projectId);
-    if (result && currentFile) {
-      updateFileContent(currentFile.id, result.code);
-      setAiPrompt("");
+  const handleSave = () => {
+    if (currentFile) {
+      saveFile(currentFile);
     }
   };
 
@@ -73,12 +70,6 @@ export default function ProjectEditor() {
         title: "Code Review",
         description: review
       });
-    }
-  };
-
-  const handleSave = () => {
-    if (currentFile) {
-      saveFile(currentFile);
     }
   };
 
@@ -280,70 +271,26 @@ export default function ProjectEditor() {
           <Card className="lg:col-span-2 overflow-hidden">
             <div className="h-full flex flex-col">
               {/* AI Assistant Panel */}
-              <div className="flex-1 border-b border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Zap className="w-4 h-4" />
-                    AI Assistant
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pb-4">
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Describe what you want to add to this file..."
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      rows={3}
-                      className="text-sm"
-                    />
-                    <Button
-                      variant="tier"
-                      size="sm"
-                      className="w-full"
-                      onClick={handleAIGenerate}
-                      disabled={!aiPrompt.trim() || aiLoading}
-                    >
-                      {aiLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Zap className="w-4 h-4" />
-                      )}
-                      Generate Code
-                    </Button>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Quick Actions:</p>
-                    <div className="space-y-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs h-auto p-2"
-                        onClick={() => setAiPrompt("Add a new custom block with special properties")}
-                      >
-                        Add Custom Block
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs h-auto p-2"
-                        onClick={() => setAiPrompt("Create a new item with special abilities")}
-                      >
-                        Add Custom Item
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs h-auto p-2"
-                        onClick={() => setAiPrompt("Generate a crafting recipe for this item")}
-                      >
-                        Add Crafting Recipe
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
+              <div className="flex-1 border-b border-border p-0">
+                <AIAssistant 
+                  currentTier={currentTier}
+                  projectId={projectId}
+                  onCodeGenerated={(code, filename) => {
+                    if (currentFile) {
+                      updateFileContent(currentFile.id, code);
+                      toast({
+                        title: "Code generated!",
+                        description: `Generated code has been added to ${currentFile.name}`
+                      });
+                    } else {
+                      // Create a new file if no current file
+                      const fileType = filename.endsWith('.java') ? 'java' : 
+                                     filename.endsWith('.json') ? 'json' : 
+                                     filename.endsWith('.mcmeta') ? 'mcmeta' : 'properties';
+                      createNewFile(filename, fileType, code);
+                    }
+                  }}
+                />
               </div>
               
               {/* Build Console */}
