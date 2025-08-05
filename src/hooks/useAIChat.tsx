@@ -11,6 +11,10 @@ export interface AICodeResponse {
   fileType: 'java' | 'json' | 'mcmeta' | 'properties';
 }
 
+export interface AICodeMessage extends ChatMessage {
+  generatedCode?: AICodeResponse;
+}
+
 // Legacy interface for compatibility
 export interface AIResponse {
   code: string;
@@ -24,13 +28,14 @@ export function useAIChat() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const addMessage = (type: 'user' | 'ai', content: string, fileContext?: string) => {
-    const message: ChatMessage = {
+  const addMessage = (type: 'user' | 'ai', content: string, fileContext?: string, generatedCode?: AICodeResponse) => {
+    const message: AICodeMessage = {
       id: Date.now().toString(),
       type,
       content,
       timestamp: new Date(),
-      fileContext
+      fileContext,
+      generatedCode
     };
     setMessages(prev => [...prev, message]);
     return message;
@@ -94,7 +99,7 @@ export function useAIChat() {
       };
       
       console.log("🤖 useAIChat: Adding AI response to chat:", response.filename);
-      addMessage('ai', response.explanation, response.filename);
+      addMessage('ai', response.explanation, response.filename, response);
 
       console.log("🤖 useAIChat: Showing success toast");
       toast({

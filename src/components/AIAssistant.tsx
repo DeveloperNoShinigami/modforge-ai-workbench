@@ -16,6 +16,7 @@ interface AIAssistantProps {
   currentFile?: ProjectFile;
   projectContext?: string;
   onCodeReview?: (review: string) => void;
+  onAddToProject?: (code: string, filename: string, fileType: string) => void;
 }
 
 export function AIAssistant({ 
@@ -24,7 +25,8 @@ export function AIAssistant({
   projectId, 
   currentFile,
   projectContext,
-  onCodeReview 
+  onCodeReview,
+  onAddToProject
 }: AIAssistantProps) {
   const [prompt, setPrompt] = useState("");
   const { messages, loading, generateCodeWithAI, reviewCodeWithAI, clearChat } = useAIChat();
@@ -226,7 +228,7 @@ export function AIAssistant({
                   )}
                 </div>
                 <div className="flex-1">
-                  <ChatHistory messages={messages} />
+                  <ChatHistory messages={messages} onAddToProject={onAddToProject} />
                 </div>
               </div>
             </TabsContent>

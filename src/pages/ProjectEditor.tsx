@@ -29,7 +29,7 @@ export default function ProjectEditor() {
   const [fileContent, setFileContent] = useState('');
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   
-  const { updateFile } = useFileManager(projectId);
+  const { updateFile, createFile } = useFileManager(projectId);
   
   const project = projects.find(p => p.id === projectId);
 
@@ -62,8 +62,21 @@ export default function ProjectEditor() {
   };
 
   const handleCodeGenerated = (code: string, filename: string, fileType: string) => {
-    // TODO: Create new file or update existing file with generated code
-    console.log("Code generated:", { code, filename, fileType });
+    console.log("Generated code:", { filename, fileType, codeLength: code.length });
+    // Code generation is handled in the chat - just log for now
+  };
+
+  const handleAddToProject = async (code: string, filename: string, fileType: string) => {
+    try {
+      await createFile(filename, code, fileType as any);
+      console.log("File added to project:", filename);
+    } catch (error) {
+      console.error("Error adding file to project:", error);
+    }
+  };
+
+  const handleCodeReview = (review: string) => {
+    console.log("Code review received:", review);
   };
 
   if (!project) {
@@ -214,6 +227,9 @@ export default function ProjectEditor() {
                 projectId={projectId}
                 currentFile={selectedFile ? adaptFromFileManager(selectedFile) : undefined}
                 onCodeGenerated={handleCodeGenerated}
+                onAddToProject={handleAddToProject}
+                onCodeReview={handleCodeReview}
+                projectContext={`Platform: ${project?.platform}, Version: ${project?.minecraft_version}`}
               />
               
               {/* Build Console */}

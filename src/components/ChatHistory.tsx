@@ -1,7 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { User, Bot, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Bot, User, Clock, Download, Plus, Copy, FileCode2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export interface ChatMessage {
   id: string;
@@ -9,14 +11,48 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   fileContext?: string;
+  generatedCode?: {
+    code: string;
+    filename: string;
+    fileType: string;
+    explanation: string;
+  };
 }
 
 interface ChatHistoryProps {
   messages: ChatMessage[];
+  onAddToProject?: (code: string, filename: string, fileType: string) => void;
 }
 
-export function ChatHistory({ messages }: ChatHistoryProps) {
+export function ChatHistory({ messages, onAddToProject }: ChatHistoryProps) {
+  const { toast } = useToast();
   console.log("💬 ChatHistory: Rendering", messages.length, "messages");
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({
+      title: "Code copied",
+      description: "Code has been copied to clipboard"
+    });
+  };
+
+  const handleAddToProject = (code: string, filename: string, fileType: string) => {
+    onAddToProject?.(code, filename, fileType);
+    toast({
+      title: "File added to project",
+      description: `${filename} has been added to your project`
+    });
+  };
+
+  const handleDragStart = (e: React.DragEvent, code: string, filename: string, fileType: string) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      code,
+      filename,
+      fileType,
+      action: 'add-file'
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
 
   if (messages.length === 0) {
     return (
@@ -83,6 +119,62 @@ export function ChatHistory({ messages }: ChatHistoryProps) {
                     }`}>
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                     </div>
+
+                    {/* Generated Code Section */}
+                    {message.generatedCode && (
+                      <div className="mt-3 border rounded-lg bg-card">
+                        <div className="flex items-center justify-between p-3 border-b bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <FileCode2 className="w-4 h-4" />
+                            <span className="font-medium text-sm">{message.generatedCode.filename}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {message.generatedCode.fileType}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleCopyCode(message.generatedCode!.code)}
+                              className="h-8"
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              Copy
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => handleAddToProject(
+                                message.generatedCode!.code, 
+                                message.generatedCode!.filename, 
+                                message.generatedCode!.fileType
+                              )}
+                              className="h-8"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Add to Project
+                            </Button>
+                          </div>
+                        </div>
+                        <div 
+                          className="p-3 cursor-move"
+                          draggable
+                          onDragStart={(e) => handleDragStart(
+                            e, 
+                            message.generatedCode!.code, 
+                            message.generatedCode!.filename, 
+                            message.generatedCode!.fileType
+                          )}
+                          title="Drag this file to add it to your project"
+                        >
+                          <pre className="text-xs bg-muted/50 p-2 rounded overflow-x-auto">
+                            <code>{message.generatedCode.code.substring(0, 200)}...</code>
+                          </pre>
+                          <p className="text-xs text-muted-foreground mt-2 italic">
+                            💡 Drag this code block to the file explorer to add it to your project
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="w-3 h-3" />
