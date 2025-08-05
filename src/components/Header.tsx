@@ -1,18 +1,31 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Code, Zap, Github, User, Crown } from "lucide-react";
+import { Code, Zap, Github, User, Crown, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   currentTier: 'free' | 'junior' | 'senior';
 }
 
 export function Header({ currentTier }: HeaderProps) {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'free': return 'bg-tier-free/10 text-tier-free border-tier-free/20';
       case 'junior': return 'bg-tier-junior/10 text-tier-junior border-tier-junior/20';
       case 'senior': return 'bg-tier-senior/10 text-tier-senior border-tier-senior/20';
       default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const handleAuthAction = () => {
+    if (user) {
+      signOut();
+    } else {
+      navigate('/auth');
     }
   };
 
@@ -45,9 +58,9 @@ export function Header({ currentTier }: HeaderProps) {
               <Zap className="w-4 h-4" />
               AI Assistant
             </Button>
-            <Button variant="outline" size="sm">
-              <User className="w-4 h-4" />
-              Account
+            <Button variant="outline" size="sm" onClick={handleAuthAction}>
+              {user ? <LogOut className="w-4 h-4" /> : <User className="w-4 h-4" />}
+              {user ? 'Sign Out' : 'Sign In'}
             </Button>
           </div>
         </div>
