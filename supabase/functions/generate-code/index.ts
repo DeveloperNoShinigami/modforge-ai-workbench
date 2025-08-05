@@ -35,9 +35,23 @@ serve(async (req) => {
       selectedProvider: provider
     });
     
-    // For this function, let's default to OpenAI since it's more reliable
-    const apiKey = openAIApiKey || openRouterApiKey;
-    const actualProvider = openAIApiKey ? 'openai' : 'openrouter';
+    // Detect if the "OPENAI" key is actually an OpenRouter key
+    const isOpenRouterKey = openAIApiKey?.startsWith('sk-or-v1');
+    
+    // Choose the right API key and provider
+    let apiKey, actualProvider;
+    if (openRouterApiKey) {
+      apiKey = openRouterApiKey;
+      actualProvider = 'openrouter';
+    } else if (openAIApiKey && !isOpenRouterKey) {
+      apiKey = openAIApiKey;
+      actualProvider = 'openai';
+    } else if (openAIApiKey && isOpenRouterKey) {
+      apiKey = openAIApiKey;
+      actualProvider = 'openrouter';
+    } else {
+      throw new Error('No valid API key found');
+    }
     
     if (!apiKey) {
       console.error("🤖 No API key found in environment");
