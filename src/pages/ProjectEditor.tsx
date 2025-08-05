@@ -188,7 +188,7 @@ export default function ProjectEditor() {
           </div>
           
           {/* Code Editor */}
-          <div className="col-span-6">
+          <div className="col-span-5">
             <Card className="h-full">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -226,7 +226,7 @@ export default function ProjectEditor() {
           </div>
           
           {/* Right Sidebar - Tools & AI */}
-          <div className="col-span-3">
+          <div className="col-span-4">
             <div className="space-y-6">
               {/* AI Assistant */}
               <AIAssistant
