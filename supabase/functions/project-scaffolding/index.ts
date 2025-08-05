@@ -19,41 +19,91 @@ serve(async (req) => {
       throw new Error('Project name, platform, and Minecraft version are required');
     }
 
-    // Generate project structure based on platform
-    const generateProjectFiles = (platform: string, projectName: string, mcVersion: string) => {
-      const baseFiles = {
-        'build.gradle': generateBuildGradle(platform, mcVersion),
-        'gradle.properties': generateGradleProperties(platform),
-        'settings.gradle': `rootProject.name = '${projectName}'`,
-        'src/main/resources/META-INF/mods.toml': generateModsToml(projectName, description || 'A Minecraft mod'),
-        [`src/main/java/com/${projectName.toLowerCase()}/${projectName}Mod.java`]: generateMainModClass(projectName, platform)
+    // Generate comprehensive project structure
+    const generateProjectStructure = (projectName: string, platform: string, mcVersion: string, description?: string) => {
+      const normalizedName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const packagePath = `com/yourname/${normalizedName}`;
+      
+      const projectFiles: Record<string, string> = {
+        // Root files
+        'build.gradle': generateBuildGradle(platform, mcVersion, normalizedName),
+        'gradle.properties': generateGradleProperties(platform, mcVersion),
+        'settings.gradle': `rootProject.name = '${normalizedName}'`,
+        'gradlew': generateGradlewScript(),
+        'gradlew.bat': generateGradlewBat(),
+        'README.md': generateReadme(projectName, description),
+        '.gitignore': generateGitignore(),
+        
+        // Main mod class
+        [`src/main/java/${packagePath}/${projectName}Mod.java`]: generateMainModClass(projectName, platform, normalizedName),
+        
+        // Registry classes
+        [`src/main/java/${packagePath}/registry/ModItems.java`]: generateModItems(projectName, normalizedName),
+        [`src/main/java/${packagePath}/registry/ModBlocks.java`]: generateModBlocks(projectName, normalizedName),
+        [`src/main/java/${packagePath}/registry/ModEntities.java`]: generateModEntities(projectName, normalizedName),
+        
+        // Event handlers
+        [`src/main/java/${packagePath}/events/CommonEvents.java`]: generateCommonEvents(projectName, normalizedName),
+        
+        // Config
+        [`src/main/java/${packagePath}/config/ModConfig.java`]: generateModConfig(projectName, normalizedName),
+        
+        // Resources
+        'src/main/resources/META-INF/mods.toml': generateModsToml(normalizedName, description || 'A Minecraft mod'),
+        'src/main/resources/pack.mcmeta': generatePackMcmeta(),
+        
+        // Language files
+        [`src/main/resources/assets/${normalizedName}/lang/en_us.json`]: generateLangFile(normalizedName),
+        
+        // Example textures (placeholder content)
+        [`src/main/resources/assets/${normalizedName}/textures/item/example_item.png`]: '# Placeholder texture file',
+        [`src/main/resources/assets/${normalizedName}/textures/block/example_block.png`]: '# Placeholder texture file',
+        
+        // Models
+        [`src/main/resources/assets/${normalizedName}/models/item/example_item.json`]: generateItemModel(),
+        [`src/main/resources/assets/${normalizedName}/models/block/example_block.json`]: generateBlockModel(),
+        
+        // Blockstates
+        [`src/main/resources/assets/${normalizedName}/blockstates/example_block.json`]: generateBlockstate(),
+        
+        // Data files
+        [`src/main/resources/data/${normalizedName}/recipes/example_item.json`]: generateRecipe(normalizedName),
+        [`src/main/resources/data/${normalizedName}/loot_tables/blocks/example_block.json`]: generateLootTable(),
+        [`src/main/resources/data/${normalizedName}/tags/blocks/example_block_tag.json`]: generateBlockTag(),
+        [`src/main/resources/data/${normalizedName}/advancements/root.json`]: generateAdvancement(normalizedName),
+        
+        // Test files
+        [`src/test/java/${packagePath}/ModTests.java`]: generateTestClass(projectName, normalizedName)
       };
 
       // Platform-specific files
       if (platform === 'fabric') {
-        baseFiles['src/main/resources/fabric.mod.json'] = generateFabricModJson(projectName, description);
+        projectFiles['src/main/resources/fabric.mod.json'] = generateFabricModJson(normalizedName, description);
       } else if (platform === 'quilt') {
-        baseFiles['src/main/resources/quilt.mod.json'] = generateQuiltModJson(projectName, description);
+        projectFiles['src/main/resources/quilt.mod.json'] = generateQuiltModJson(normalizedName, description);
       }
 
-      return baseFiles;
+      return {
+        files: Object.keys(projectFiles),
+        projectStructure: projectFiles,
+        nextSteps: [
+          'Review generated mod configuration',
+          'Add textures to assets/textures/ folders',
+          'Implement your first custom block or item',
+          'Configure mod metadata in mods.toml',
+          'Build and test your mod with gradlew runClient'
+        ]
+      };
     };
 
-    const projectFiles = generateProjectFiles(platform, projectName, minecraftVersion);
+    const projectStructure = generateProjectStructure(projectName, platform, minecraftVersion, description);
     
     const scaffoldResult = {
       success: true,
       projectName,
       platform,
       minecraftVersion,
-      files: Object.keys(projectFiles),
-      projectStructure: projectFiles,
-      nextSteps: [
-        'Review generated mod configuration',
-        'Customize your mod metadata',
-        'Add your first block or item',
-        'Build and test your mod'
-      ]
+      ...projectStructure
     };
 
     console.log("🏗️ Project scaffolded successfully:", projectName);
@@ -82,7 +132,7 @@ serve(async (req) => {
   }
 });
 
-function generateBuildGradle(platform: string, mcVersion: string): string {
+function generateBuildGradle(platform: string, mcVersion: string, normalizedName: string): string {
   const templates = {
     forge: `plugins {
     id 'eclipse'
@@ -247,7 +297,7 @@ function generateQuiltModJson(projectName: string, description: string): string 
   }, null, 2);
 }
 
-function generateMainModClass(projectName: string, platform: string): string {
+function generateMainModClass(projectName: string, platform: string, normalizedName: string): string {
   const templates = {
     forge: `package com.${projectName.toLowerCase()};
 
@@ -308,4 +358,297 @@ public class ${projectName}Mod {
   };
 
   return templates[platform as keyof typeof templates] || templates.forge;
+}
+
+// Additional generator functions for comprehensive project structure
+
+function generateGradleProperties(platform: string, mcVersion: string): string {
+  return `org.gradle.jvmargs=-Xmx3G
+org.gradle.daemon=false
+minecraft_version=${mcVersion}
+mod_version=1.0.0
+maven_group=com.yourname.modname
+loader_version=${platform === 'fabric' ? '0.14.24' : '0.19.3'}
+fabric_version=0.91.0+1.20.1`;
+}
+
+function generateGradlewScript(): string {
+  return `#!/bin/sh
+# Gradle wrapper script for Unix systems
+GRADLE_APP_NAME="Gradle"
+exec gradle "$@"`;
+}
+
+function generateGradlewBat(): string {
+  return `@echo off
+rem Gradle wrapper script for Windows
+gradle %*`;
+}
+
+function generateReadme(projectName: string, description?: string): string {
+  return `# ${projectName}
+
+${description || 'A Minecraft mod built with Forge'}
+
+## Building
+
+Run \`./gradlew build\` to build the mod.
+
+## Development
+
+Run \`./gradlew runClient\` to start a development client.
+
+## License
+
+This mod is licensed under MIT License.`;
+}
+
+function generateGitignore(): string {
+  return `# Build output
+build/
+.gradle/
+run/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log`;
+}
+
+function generateModItems(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName}.registry;
+
+import net.minecraft.world.item.Item;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+public class ModItems {
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, "${normalizedName}");
+    
+    // Example item registration
+    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item", 
+        () -> new Item(new Item.Properties()));
+}`;
+}
+
+function generateModBlocks(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName}.registry;
+
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.Material;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+public class ModBlocks {
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, "${normalizedName}");
+    
+    // Example block registration
+    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", 
+        () -> new Block(BlockBehaviour.Properties.of(Material.STONE)));
+}`;
+}
+
+function generateModEntities(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName}.registry;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+
+public class ModEntities {
+    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, "${normalizedName}");
+    
+    // Entity registrations will go here
+}`;
+}
+
+function generateCommonEvents(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName}.events;
+
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+
+@Mod.EventBusSubscriber(modid = "${normalizedName}")
+public class CommonEvents {
+    
+    @SubscribeEvent
+    public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
+        // Handle player join events
+    }
+}`;
+}
+
+function generateModConfig(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName}.config;
+
+import net.minecraftforge.common.ForgeConfigSpec;
+
+public class ModConfig {
+    public static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
+    public static final ForgeConfigSpec SPEC;
+    
+    // Example config option
+    public static final ForgeConfigSpec.BooleanValue EXAMPLE_SETTING;
+    
+    static {
+        EXAMPLE_SETTING = BUILDER
+            .comment("An example configuration setting")
+            .define("example_setting", true);
+        
+        SPEC = BUILDER.build();
+    }
+}`;
+}
+
+function generatePackMcmeta(): string {
+  return JSON.stringify({
+    pack: {
+      description: "Mod resources",
+      pack_format: 15
+    }
+  }, null, 2);
+}
+
+function generateLangFile(normalizedName: string): string {
+  return JSON.stringify({
+    [`item.${normalizedName}.example_item`]: "Example Item",
+    [`block.${normalizedName}.example_block`]: "Example Block",
+    [`itemGroup.${normalizedName}`]: "Example Mod"
+  }, null, 2);
+}
+
+function generateItemModel(): string {
+  return JSON.stringify({
+    parent: "item/generated",
+    textures: {
+      layer0: "mymod:item/example_item"
+    }
+  }, null, 2);
+}
+
+function generateBlockModel(): string {
+  return JSON.stringify({
+    parent: "block/cube_all",
+    textures: {
+      all: "mymod:block/example_block"
+    }
+  }, null, 2);
+}
+
+function generateBlockstate(): string {
+  return JSON.stringify({
+    variants: {
+      "": {
+        model: "mymod:block/example_block"
+      }
+    }
+  }, null, 2);
+}
+
+function generateRecipe(normalizedName: string): string {
+  return JSON.stringify({
+    type: "minecraft:crafting_shaped",
+    pattern: [
+      "XXX",
+      "XYX",
+      "XXX"
+    ],
+    key: {
+      X: {
+        item: "minecraft:stone"
+      },
+      Y: {
+        item: "minecraft:diamond"
+      }
+    },
+    result: {
+      item: `${normalizedName}:example_item`,
+      count: 1
+    }
+  }, null, 2);
+}
+
+function generateLootTable(): string {
+  return JSON.stringify({
+    type: "minecraft:block",
+    pools: [
+      {
+        rolls: 1,
+        entries: [
+          {
+            type: "minecraft:item",
+            name: "mymod:example_block"
+          }
+        ]
+      }
+    ]
+  }, null, 2);
+}
+
+function generateBlockTag(): string {
+  return JSON.stringify({
+    replace: false,
+    values: [
+      "mymod:example_block"
+    ]
+  }, null, 2);
+}
+
+function generateAdvancement(normalizedName: string): string {
+  return JSON.stringify({
+    display: {
+      icon: {
+        item: `${normalizedName}:example_item`
+      },
+      title: "Getting Started",
+      description: "Welcome to the mod!",
+      frame: "task",
+      show_toast: true,
+      announce_to_chat: true,
+      hidden: false
+    },
+    criteria: {
+      has_item: {
+        trigger: "minecraft:inventory_changed",
+        conditions: {
+          items: [
+            {
+              items: [`${normalizedName}:example_item`]
+            }
+          ]
+        }
+      }
+    },
+    requirements: [["has_item"]]
+  }, null, 2);
+}
+
+function generateTestClass(projectName: string, normalizedName: string): string {
+  return `package com.yourname.${normalizedName};
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class ModTests {
+    
+    @Test
+    public void testModInitialization() {
+        // Test mod initialization
+        assertTrue(true, "Mod should initialize successfully");
+    }
+}`;
 }
