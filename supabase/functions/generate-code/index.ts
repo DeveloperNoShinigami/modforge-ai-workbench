@@ -35,14 +35,13 @@ serve(async (req) => {
       selectedProvider: provider
     });
     
-    if (provider === 'openrouter' && !openRouterApiKey) {
-      console.error("🤖 OpenRouter API key not found in environment");
-      throw new Error('OpenRouter API key not configured - please check Supabase secrets');
-    }
+    // For this function, let's default to OpenAI since it's more reliable
+    const apiKey = openAIApiKey || openRouterApiKey;
+    const actualProvider = openAIApiKey ? 'openai' : 'openrouter';
     
-    if (provider === 'openai' && !openAIApiKey) {
-      console.error("🤖 OpenAI API key not found in environment");
-      throw new Error('OpenAI API key not configured - please check Supabase secrets');
+    if (!apiKey) {
+      console.error("🤖 No API key found in environment");
+      throw new Error('API key not configured - please check Supabase secrets');
     }
 
     // Build context-aware system prompt for Minecraft modding
@@ -79,17 +78,18 @@ Generate code that is production-ready and follows Minecraft modding conventions
     // Configure API endpoint and headers based on provider
     let apiUrl, headers, requestBody;
     
-    if (provider === 'openrouter') {
+    
+    if (actualProvider === 'openrouter') {
       console.log('🤖 Making request to OpenRouter API...');
       apiUrl = 'https://api.openrouter.ai/api/v1/chat/completions';
       headers = {
-        'Authorization': `Bearer ${openRouterApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://modforge.ai',
         'X-Title': 'ModForge AI Workbench',
       };
       requestBody = {
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -101,11 +101,11 @@ Generate code that is production-ready and follows Minecraft modding conventions
       console.log('🤖 Making request to OpenAI API...');
       apiUrl = 'https://api.openai.com/v1/chat/completions';
       headers = {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       };
       requestBody = {
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -124,18 +124,18 @@ Generate code that is production-ready and follows Minecraft modding conventions
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: { message: 'Unknown API error' } }));
-      console.error(`🤖 ${provider.toUpperCase()} API Error Response:`, {
+      console.error(`🤖 ${actualProvider.toUpperCase()} API Error Response:`, {
         status: response.status,
         statusText: response.statusText,
         errorData
       });
-      throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`${actualProvider.toUpperCase()} API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
     
-    console.log(`🤖 ${provider.toUpperCase()} Response received:`, aiResponse.substring(0, 100) + "...");
+    console.log(`🤖 ${actualProvider.toUpperCase()} Response received:`, aiResponse.substring(0, 100) + "...");
 
     // Try to parse JSON response, fallback to text processing
     let parsedResponse;
