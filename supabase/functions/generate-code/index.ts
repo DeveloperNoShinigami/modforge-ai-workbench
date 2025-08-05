@@ -89,7 +89,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'X-Title': 'ModForge AI Workbench',
       };
       requestBody = {
-        model: 'deepseek/deepseek-r1',
+        model: 'anthropic/claude-3.5-sonnet',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }

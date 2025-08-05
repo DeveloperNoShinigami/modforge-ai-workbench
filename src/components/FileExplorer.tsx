@@ -93,14 +93,14 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     
     try {
       const fileData = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const newPath = targetPath === 'root' ? fileData.file_name : `${targetPath}/${fileData.file_name}`;
+      const newPath = targetPath === '' ? fileData.file_name : `${targetPath}/${fileData.file_name}`;
       
       // Update file path in database
       await updateFile(fileData.id, fileData.file_content, newPath);
       
       toast({
         title: "File moved",
-        description: `${fileData.file_name} moved to ${targetPath}`,
+        description: `${fileData.file_name} moved to ${targetPath || 'root'}`,
       });
     } catch (error) {
       console.error('Error moving file:', error);
@@ -121,28 +121,28 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
       
       // Create main mod folder structure
       await createFolder('src', undefined);
-      await createFolder('src/main', undefined);
-      await createFolder('src/main/java', undefined);
-      await createFolder('src/main/java/com', undefined);
-      await createFolder('src/main/java/com/example', undefined);
-      await createFolder('src/main/java/com/example/' + modId, undefined);
-      await createFolder('src/main/resources', undefined);
-      await createFolder('src/main/resources/META-INF', undefined);
-      await createFolder('src/main/resources/assets', undefined);
-      await createFolder('src/main/resources/assets/' + modId, undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/textures', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/textures/item', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/textures/block', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/models', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/models/item', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/models/block', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/blockstates', undefined);
-      await createFolder('src/main/resources/assets/' + modId + '/lang', undefined);
-      await createFolder('src/main/resources/data', undefined);
-      await createFolder('src/main/resources/data/' + modId, undefined);
-      await createFolder('src/main/resources/data/' + modId + '/recipes', undefined);
+      await createFolder('main', 'src');
+      await createFolder('java', 'src/main');
+      await createFolder('com', 'src/main/java');
+      await createFolder('example', 'src/main/java/com');
+      await createFolder(modId, 'src/main/java/com/example');
+      await createFolder('resources', 'src/main');
+      await createFolder('META-INF', 'src/main/resources');
+      await createFolder('assets', 'src/main/resources');
+      await createFolder(modId, 'src/main/resources/assets');
+      await createFolder('textures', `src/main/resources/assets/${modId}`);
+      await createFolder('item', `src/main/resources/assets/${modId}/textures`);
+      await createFolder('block', `src/main/resources/assets/${modId}/textures`);
+      await createFolder('models', `src/main/resources/assets/${modId}`);
+      await createFolder('item', `src/main/resources/assets/${modId}/models`);
+      await createFolder('block', `src/main/resources/assets/${modId}/models`);
+      await createFolder('blockstates', `src/main/resources/assets/${modId}`);
+      await createFolder('lang', `src/main/resources/assets/${modId}`);
+      await createFolder('data', 'src/main/resources');
+      await createFolder(modId, 'src/main/resources/data');
+      await createFolder('recipes', `src/main/resources/data/${modId}`);
       await createFolder('gradle', undefined);
-      await createFolder('gradle/wrapper', undefined);
+      await createFolder('wrapper', 'gradle');
       
       // Create sample files with complete content
       const sampleFiles = [
@@ -391,6 +391,53 @@ public class ModItems {
           type: 'java'
         },
         {
+          name: 'ModBlocks.java',
+          path: `src/main/java/com/example/${modId}/ModBlocks.java`,
+          content: `package com.example.${modId};
+
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.Material;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+import java.util.function.Supplier;
+
+public class ModBlocks {
+    public static final DeferredRegister<Block> BLOCKS = 
+        DeferredRegister.create(ForgeRegistries.BLOCKS, ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.MOD_ID);
+
+    // Example custom block
+    public static final RegistryObject<Block> EXAMPLE_BLOCK = registerBlock("example_block",
+        () -> new Block(BlockBehaviour.Properties.of(Material.STONE)
+            .strength(3.0f, 3.0f)
+            .sound(SoundType.STONE)
+            .requiresCorrectToolForDrops()));
+
+    private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {
+        RegistryObject<T> toReturn = BLOCKS.register(name, block);
+        registerBlockItem(name, toReturn);
+        return toReturn;
+    }
+
+    private static <T extends Block> RegistryObject<Item> registerBlockItem(String name, RegistryObject<T> block) {
+        return ModItems.ITEMS.register(name, () -> new BlockItem(block.get(), 
+            new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
+    }
+
+    public static void register(IEventBus eventBus) {
+        BLOCKS.register(eventBus);
+    }
+}`,
+          type: 'java'
+        },
+        {
           name: 'en_us.json',
           path: `src/main/resources/assets/${modId}/lang/en_us.json`,
           content: `{
@@ -463,65 +510,26 @@ public class ModItems {
   }
 }`,
           type: 'json'
-        },
-        {
-          name: 'ModBlocks.java',
-          path: `src/main/java/com/example/${modId}/ModBlocks.java`,
-          content: `package com.example.${modId};
-
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.Material;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
-
-import java.util.function.Supplier;
-
-public class ModBlocks {
-    public static final DeferredRegister<Block> BLOCKS = 
-        DeferredRegister.create(ForgeRegistries.BLOCKS, ${modId.charAt(0).toUpperCase() + modId.slice(1)}Mod.MOD_ID);
-
-    // Example custom block
-    public static final RegistryObject<Block> EXAMPLE_BLOCK = registerBlock("example_block",
-        () -> new Block(BlockBehaviour.Properties.of(Material.STONE)
-            .strength(3.0f, 3.0f)
-            .sound(SoundType.STONE)
-            .requiresCorrectToolForDrops()));
-
-    private static <T extends Block> RegistryObject<T> registerBlock(String name, Supplier<T> block) {
-        RegistryObject<T> toReturn = BLOCKS.register(name, block);
-        registerBlockItem(name, toReturn);
-        return toReturn;
-    }
-
-    private static <T extends Block> RegistryObject<Item> registerBlockItem(String name, RegistryObject<T> block) {
-        return ModItems.ITEMS.register(name, () -> new BlockItem(block.get(),
-            new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS)));
-    }
-
-    public static void register(IEventBus eventBus) {
-        BLOCKS.register(eventBus);
-    }
-}`,
-          type: 'java'
         }
       ];
-
-      // Create all sample files
-      for (const file of sampleFiles) {
-        await createFile(file.name, file.path, file.content, file.type);
+      
+      for (const fileSpec of sampleFiles) {
+        const parentPath = fileSpec.path.includes('/') ? fileSpec.path.substring(0, fileSpec.path.lastIndexOf('/')) : '';
+        await createFile(
+          fileSpec.name,
+          fileSpec.path,
+          fileSpec.content,
+          fileSpec.type,
+          false,
+          parentPath || undefined
+        );
       }
-
+      
       toast({
         title: "Sample project created!",
-        description: "Complete mod structure with working code generated",
+        description: `Complete Forge mod project with ${sampleFiles.length} files created`,
       });
+      
     } catch (error) {
       console.error('Error creating sample project:', error);
       toast({
@@ -532,99 +540,46 @@ public class ModBlocks {
     }
   };
 
-  const renderTreeNode = (name: string, node: any, path: string = '', level: number = 0) => {
-    const fullPath = path ? `${path}/${name}` : name;
-    const isExpanded = expandedFolders.has(fullPath);
-    const isSelected = selectedFile?.id === node.file?.id;
-    const isDragOver = dragOverFolder === fullPath;
+  const handleDelete = async (file: ProjectFile) => {
+    if (confirm(`Are you sure you want to delete ${file.file_name}?`)) {
+      await deleteFile(file.id);
+    }
+  };
 
-    const toggleExpanded = () => {
-      const newExpanded = new Set(expandedFolders);
-      if (isExpanded) {
-        newExpanded.delete(fullPath);
-      } else {
-        newExpanded.add(fullPath);
+  const clearProject = async () => {
+    if (confirm('Are you sure you want to clear the entire project? This will delete ALL files and cannot be undone.')) {
+      try {
+        // Delete all files
+        for (const file of files) {
+          await deleteFile(file.id);
+        }
+        toast({
+          title: "Project cleared",
+          description: "All files have been deleted from the project",
+        });
+      } catch (error) {
+        console.error('Error clearing project:', error);
+        toast({
+          title: "Error",
+          description: "Failed to clear project",
+          variant: "destructive"
+        });
       }
-      setExpandedFolders(newExpanded);
-    };
-
-    return (
-      <div key={fullPath} className="space-y-1">
-        <div 
-          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted transition-colors ${
-            isSelected ? 'bg-primary/10 text-primary' : ''
-          } ${isDragOver ? 'bg-accent/20 border-2 border-accent border-dashed' : ''}`}
-          style={{ paddingLeft: `${level * 16 + 8}px` }}
-          draggable={node.type === 'file'}
-          onDragStart={(e) => node.file && handleDragStart(e, node.file)}
-          onDragOver={node.type === 'folder' ? (e) => handleDragOver(e, fullPath) : undefined}
-          onDragLeave={node.type === 'folder' ? handleDragLeave : undefined}
-          onDrop={node.type === 'folder' ? (e) => handleDrop(e, fullPath) : undefined}
-          onClick={() => {
-            if (node.type === 'folder') {
-              toggleExpanded();
-            } else if (node.file) {
-              onFileSelect(node.file);
-            }
-          }}
-        >
-          {node.type === 'folder' && (
-            <>
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <Folder className="w-4 h-4 text-blue-400" />
-            </>
-          )}
-          {node.type === 'file' && (
-            <>
-              <div className="w-4"></div>
-              <FileCode className="w-4 h-4 text-green-400" />
-            </>
-          )}
-          <span className="text-sm font-mono">{name}</span>
-          {node.file && !node.file.is_directory && (
-            <>
-              <Badge variant="outline" className="ml-auto text-xs">
-                {node.file.file_type}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteFile(node.file.id);
-                }}
-                className="ml-1 h-6 w-6 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </>
-          )}
-        </div>
-        
-        {node.type === 'folder' && isExpanded && Object.keys(node.children).length > 0 && (
-          <div>
-            {Object.entries(node.children).map(([childName, childNode]) =>
-              renderTreeNode(childName, childNode, fullPath, level + 1)
-            )}
-          </div>
-        )}
-      </div>
-    );
+    }
   };
 
   const handleCreate = async () => {
     if (!newFileName.trim()) return;
-
+    
+    const parentPath = selectedParent === 'root' ? undefined : selectedParent;
+    
     try {
-      const parentPath = selectedParent === 'root' ? undefined : selectedParent || undefined;
-      
       if (createType === 'folder') {
         await createFolder(newFileName, parentPath);
       } else if (createType === 'template' && selectedTemplate) {
         await createFileFromTemplate(selectedTemplate, newFileName, parentPath, modId);
       } else {
-        const filePath = parentPath ? `${parentPath}/${newFileName}` : newFileName;
-        await createFile(newFileName, filePath);
+        await createFile(newFileName, parentPath ? `${parentPath}/${newFileName}` : newFileName, '', 'text', false, parentPath);
       }
       
       setShowCreateDialog(false);
@@ -636,84 +591,166 @@ public class ModBlocks {
     }
   };
 
-  const fileTree = buildFileTree(files);
-  
-  const getFolderOptions = (files: ProjectFile[]) => {
-    return files
-      .filter(f => f.is_directory)
-      .map(f => ({ value: f.file_path, label: f.file_path }));
+  const toggleFolder = (path: string) => {
+    const newExpanded = new Set(expandedFolders);
+    if (newExpanded.has(path)) {
+      newExpanded.delete(path);
+    } else {
+      newExpanded.add(path);
+    }
+    setExpandedFolders(newExpanded);
   };
 
-  return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Folder className="w-5 h-5 text-primary" />
-            Project Files
-          </CardTitle>
-          <div className="flex gap-1">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={createSampleProject}
-              title="Create complete sample mod"
-            >
-              <Package className="w-3 h-3" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                setCreateType('template');
-                setShowCreateDialog(true);
-              }}
-            >
-              <Plus className="w-3 h-3" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                setCreateType('folder');
-                setShowCreateDialog(true);
-              }}
-            >
-              <FolderPlus className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
+  const renderFileTree = (tree: any, depth = 0, parentPath = '') => {
+    return Object.entries(tree).map(([name, node]: [string, any]) => {
+      const path = parentPath ? `${parentPath}/${name}` : name;
+      const isExpanded = expandedFolders.has(path);
       
-      <CardContent className="p-0">
-        <ScrollArea className="h-[600px]">
-          <div className="p-4">
-            {loading ? (
-              <div className="text-center text-muted-foreground py-8">
-                Loading files...
-              </div>
-            ) : Object.keys(fileTree).length > 0 ? (
-              <div className="space-y-1">
-                {Object.entries(fileTree).map(([name, node]) =>
-                  renderTreeNode(name, node)
-                )}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                <FileCode className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No files yet. Create your first file to get started!</p>
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => {
-                    setCreateType('template');
-                    setShowCreateDialog(true);
+      return (
+        <div key={path}>
+          {node.type === 'folder' ? (
+            <div
+              className={`flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-muted/50 rounded group ${
+                dragOverFolder === path ? 'bg-primary/20' : ''
+              }`}
+              style={{ paddingLeft: `${(depth + 1) * 12}px` }}
+              onClick={() => toggleFolder(path)}
+              onDragOver={(e) => handleDragOver(e, path)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, path)}
+            >
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <Folder className="h-4 w-4 text-blue-500" />
+              <span className="text-sm flex-1">{name}</span>
+              {node.file && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(node.file);
                   }}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create File
+                  <Trash2 className="h-3 w-3" />
                 </Button>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-muted/50 rounded group ${
+                selectedFile?.id === node.file?.id ? 'bg-primary/10' : ''
+              }`}
+              style={{ paddingLeft: `${(depth + 1) * 12}px` }}
+              onClick={() => onFileSelect(node.file)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, node.file)}
+            >
+              <File className="h-4 w-4 text-gray-500" />
+              <span className="text-sm flex-1">{name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(node.file);
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          
+          {node.type === 'folder' && isExpanded && Object.keys(node.children).length > 0 && (
+            renderFileTree(node.children, depth + 1, path)
+          )}
+        </div>
+      );
+    });
+  };
+
+  if (loading) {
+    return (
+      <Card className="h-full">
+        <CardContent className="p-6">
+          <div className="text-center">Loading files...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const tree = buildFileTree(files);
+  
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Folder className="h-5 w-5" />
+          Project Files
+        </CardTitle>
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-1"
+          >
+            <Plus className="h-4 w-4" />
+            Add File
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {setCreateType('folder'); setShowCreateDialog(true);}}
+            className="flex items-center gap-1"
+          >
+            <FolderPlus className="h-4 w-4" />
+            Add Folder
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={createSampleProject}
+            className="flex items-center gap-1"
+          >
+            <Package className="h-4 w-4" />
+            Sample Project
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={clearProject}
+            className="flex items-center gap-1"
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear All
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="h-[400px]">
+          <div className="p-2">
+            {/* Root drop zone */}
+            <div
+              className={`p-2 border-2 border-dashed rounded mb-2 ${
+                dragOverFolder === '' ? 'border-primary bg-primary/10' : 'border-muted-foreground/25'
+              }`}
+              onDragOver={(e) => handleDragOver(e, '')}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, '')}
+            >
+              <span className="text-sm text-muted-foreground">Root Directory</span>
+            </div>
+            
+            {Object.keys(tree).length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No files yet</p>
+                <p className="text-sm">Create your first file or generate a sample project</p>
               </div>
+            ) : (
+              renderFileTree(tree)
             )}
           </div>
         </ScrollArea>
@@ -723,84 +760,112 @@ public class ModBlocks {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Create New {createType === 'folder' ? 'Folder' : 'File'}
+              {createType === 'folder' ? 'Create New Folder' : 
+               createType === 'template' ? 'Create From Template' : 'Create New File'}
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                variant={createType === 'file' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCreateType('file')}
+              >
+                File
+              </Button>
+              <Button
+                variant={createType === 'folder' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCreateType('folder')}
+              >
+                Folder
+              </Button>
+              <Button
+                variant={createType === 'template' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCreateType('template')}
+              >
+                Template
+              </Button>
+            </div>
+
             {createType === 'template' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">File Type</label>
-                <Select 
-                  value={selectedTemplate?.name || ''} 
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Template</label>
+                <Select
+                  value={selectedTemplate?.name || ''}
                   onValueChange={(value) => {
                     const template = forgeFileTypes.find(t => t.name === value);
                     setSelectedTemplate(template || null);
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select file type" />
+                    <SelectValue placeholder="Choose a template" />
                   </SelectTrigger>
                   <SelectContent>
-                    {['java', 'resource', 'data', 'config'].map(category => (
+                    {Object.entries(
+                      forgeFileTypes.reduce((acc, type) => {
+                        if (!acc[type.category]) acc[type.category] = [];
+                        acc[type.category].push(type);
+                        return acc;
+                      }, {} as Record<string, ForgeFileType[]>)
+                    ).map(([category, types]) => (
                       <div key={category}>
                         <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase">
                           {category}
                         </div>
-                        {forgeFileTypes
-                          .filter(t => t.category === category)
-                          .map(template => (
-                            <SelectItem key={template.name} value={template.name}>
-                              <div className="flex items-center gap-2">
-                                <span>{template.icon}</span>
-                                <span>{template.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {template.extension}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
+                        {types.map(type => (
+                          <SelectItem key={type.name} value={type.name}>
+                            <div className="flex items-center gap-2">
+                              <span>{type.icon}</span>
+                              <span>{type.name}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {type.extension}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
                       </div>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {createType === 'folder' ? 'Folder Name' : 'File Name'}
+              </label>
               <Input
                 value={newFileName}
                 onChange={(e) => setNewFileName(e.target.value)}
-                placeholder={createType === 'folder' ? 'folder-name' : 'filename'}
+                placeholder={createType === 'folder' ? 'my-folder' : 'MyFile.java'}
               />
             </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Parent Folder (Optional)</label>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Parent Directory</label>
               <Select value={selectedParent} onValueChange={setSelectedParent}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select parent folder" />
+                  <SelectValue placeholder="Select parent directory" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="root">Root</SelectItem>
-                  {getFolderOptions(files).map(folder => (
-                    <SelectItem key={folder.value} value={folder.value}>
-                      {folder.label}
+                  <SelectItem value="root">Root Directory</SelectItem>
+                  {files.filter(f => f.is_directory).map(folder => (
+                    <SelectItem key={folder.id} value={folder.file_path}>
+                      {folder.file_path}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleCreate}
-                disabled={!newFileName.trim() || (createType === 'template' && !selectedTemplate)}
-              >
+              <Button onClick={handleCreate} disabled={!newFileName.trim()}>
                 Create
               </Button>
             </div>
