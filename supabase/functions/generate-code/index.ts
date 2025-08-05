@@ -13,21 +13,34 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, currentFile, projectContext } = await req.json();
+    const { prompt, currentFile, projectContext, provider = 'openrouter' } = await req.json();
     console.log("🤖 AI Generate Code:", { 
       prompt: prompt?.substring(0, 50) + "...", 
       hasCurrentFile: !!currentFile,
-      projectContext 
+      projectContext,
+      provider 
     });
 
     if (!prompt) {
       throw new Error('Prompt is required');
     }
 
+    // Get API keys based on provider
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    console.log("🤖 OpenAI API key check:", openAIApiKey ? "Found" : "Missing");
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     
-    if (!openAIApiKey) {
+    console.log("🤖 API Keys check:", { 
+      openai: openAIApiKey ? "Found" : "Missing",
+      openrouter: openRouterApiKey ? "Found" : "Missing",
+      selectedProvider: provider
+    });
+    
+    if (provider === 'openrouter' && !openRouterApiKey) {
+      console.error("🤖 OpenRouter API key not found in environment");
+      throw new Error('OpenRouter API key not configured - please check Supabase secrets');
+    }
+    
+    if (provider === 'openai' && !openAIApiKey) {
       console.error("🤖 OpenAI API key not found in environment");
       throw new Error('OpenAI API key not configured - please check Supabase secrets');
     }
@@ -63,44 +76,66 @@ Respond with a JSON object containing:
 
 Generate code that is production-ready and follows Minecraft modding conventions.`;
 
-    // Create the OpenAI request
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+    // Configure API endpoint and headers based on provider
+    let apiUrl, headers, requestBody;
+    
+    if (provider === 'openrouter') {
+      console.log('🤖 Making request to OpenRouter API...');
+      apiUrl = 'https://api.openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${openRouterApiKey}`,
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        'HTTP-Referer': 'https://modforge.ai',
+        'X-Title': 'ModForge AI Workbench',
+      };
+      requestBody = {
+        model: 'deepseek/deepseek-r1-0528:free',
         messages: [
-          { 
-            role: 'system', 
-            content: systemPrompt
-          },
-          { 
-            role: 'user', 
-            content: prompt
-          }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
         ],
         temperature: 0.7,
         max_tokens: 2000,
-      }),
+      };
+    } else {
+      console.log('🤖 Making request to OpenAI API...');
+      apiUrl = 'https://api.openai.com/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      };
+      requestBody = {
+        model: 'gpt-4.1-2025-04-14',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      };
+    }
+
+    // Create the API request
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: { message: 'Unknown API error' } }));
-      console.error('🤖 OpenAI API Error Response:', {
+      console.error(`🤖 ${provider.toUpperCase()} API Error Response:`, {
         status: response.status,
         statusText: response.statusText,
         errorData
       });
-      throw new Error(`OpenAI API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
     
-    console.log("🤖 OpenAI Response received:", aiResponse.substring(0, 100) + "...");
+    console.log(`🤖 ${provider.toUpperCase()} Response received:`, aiResponse.substring(0, 100) + "...");
 
     // Try to parse JSON response, fallback to text processing
     let parsedResponse;

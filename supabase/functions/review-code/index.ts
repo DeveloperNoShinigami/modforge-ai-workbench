@@ -13,17 +13,29 @@ serve(async (req) => {
   }
 
   try {
-    const { code, filename, fileType } = await req.json();
-    console.log("🔍 AI Code Review:", { filename, fileType, codeLength: code?.length });
+    const { code, filename, fileType, provider = 'openrouter' } = await req.json();
+    console.log("🔍 AI Code Review:", { filename, fileType, codeLength: code?.length, provider });
 
     if (!code) {
       throw new Error('Code content is required for review');
     }
 
+    // Get API keys based on provider
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    console.log("🔍 OpenAI API key check:", openAIApiKey ? "Found" : "Missing");
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     
-    if (!openAIApiKey) {
+    console.log("🔍 API Keys check:", { 
+      openai: openAIApiKey ? "Found" : "Missing",
+      openrouter: openRouterApiKey ? "Found" : "Missing",
+      selectedProvider: provider
+    });
+    
+    if (provider === 'openrouter' && !openRouterApiKey) {
+      console.error("🔍 OpenRouter API key not found in environment");
+      throw new Error('OpenRouter API key not configured - please check Supabase secrets');
+    }
+    
+    if (provider === 'openai' && !openAIApiKey) {
       console.error("🔍 OpenAI API key not found in environment");
       throw new Error('OpenAI API key not configured - please check Supabase secrets');
     }
@@ -65,38 +77,60 @@ Provide feedback on:
 4. Performance considerations
 5. Suggestions for enhancement`;
 
-    // Create the OpenAI request
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
+    // Configure API endpoint and headers based on provider
+    let apiUrl, headers, requestBody;
+    
+    if (provider === 'openrouter') {
+      console.log('🔍 Making request to OpenRouter API...');
+      apiUrl = 'https://api.openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Authorization': `Bearer ${openRouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://modforge.ai',
+        'X-Title': 'ModForge AI Workbench',
+      };
+      requestBody = {
+        model: 'deepseek/deepseek-r1-0528:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: reviewPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      };
+    } else {
+      console.log('🔍 Making request to OpenAI API...');
+      apiUrl = 'https://api.openai.com/v1/chat/completions';
+      headers = {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      };
+      requestBody = {
         model: 'gpt-4.1-2025-04-14',
         messages: [
-          { 
-            role: 'system', 
-            content: systemPrompt
-          },
-          { 
-            role: 'user', 
-            content: reviewPrompt
-          }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: reviewPrompt }
         ],
-        temperature: 0.3, // Lower temperature for more consistent reviews
+        temperature: 0.3,
         max_tokens: 1500,
-      }),
+      };
+    }
+
+    // Create the API request
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: { message: 'Unknown API error' } }));
-      console.error('🔍 OpenAI API Error Response:', {
+      console.error(`🔍 ${provider.toUpperCase()} API Error Response:`, {
         status: response.status,
         statusText: response.statusText,
         errorData
       });
-      throw new Error(`OpenAI API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
