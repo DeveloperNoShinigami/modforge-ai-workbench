@@ -178,7 +178,7 @@ export default function ProjectEditor() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-200px)]">
           {/* File Explorer */}
           <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
