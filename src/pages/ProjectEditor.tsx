@@ -290,20 +290,32 @@ export default function ProjectEditor() {
                 <AIAssistant 
                   currentTier={currentTier}
                   projectId={projectId}
-                  onCodeGenerated={(code, filename) => {
-                    if (currentFile) {
+                  currentFile={currentFile}
+                  projectContext={`Project: ${project?.name}, Platform: ${project?.platform}, Minecraft: ${project?.minecraft_version}`}
+                  onCodeGenerated={(code, filename, fileType) => {
+                    if (currentFile && currentFile.name === filename) {
+                      // Update current file
                       updateFileContent(currentFile.id, code);
                       toast({
-                        title: "Code generated!",
-                        description: `Generated code has been added to ${currentFile.name}`
+                        title: "Code updated!",
+                        description: `${filename} has been updated with AI-generated code`
                       });
                     } else {
-                      // Create a new file if no current file
-                      const fileType = filename.endsWith('.java') ? 'java' : 
-                                     filename.endsWith('.json') ? 'json' : 
-                                     filename.endsWith('.mcmeta') ? 'mcmeta' : 'properties';
-                      createNewFile(filename, fileType, code);
+                      // Create new file
+                      const type = fileType as 'java' | 'json' | 'mcmeta' | 'properties';
+                      createNewFile(filename, type, code);
+                      toast({
+                        title: "File created!",
+                        description: `${filename} has been created with AI-generated code`
+                      });
                     }
+                  }}
+                  onCodeReview={(review) => {
+                    toast({
+                      title: "Code Review Complete",
+                      description: "Check the AI chat history for detailed feedback",
+                      duration: 3000
+                    });
                   }}
                 />
               </div>

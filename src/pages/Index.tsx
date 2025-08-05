@@ -179,15 +179,24 @@ const Index = () => {
               </div>
               
               <div className="space-y-6">
-                <AIAssistant 
-                  currentTier={currentTier} 
-                  onCodeGenerated={(code, filename) => {
-                    toast({
-                      title: "Code generated!",
-                      description: `${filename} created. Open a project to edit it.`
-                    });
-                  }}
-                />
+                <Card className="bg-gradient-accent/5 border-accent/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-accent" />
+                      AI Code Assistant
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Open a project to access the full AI assistant with real-time code generation, 
+                      chat history, and file understanding capabilities.
+                    </p>
+                    <Button variant="outline" className="w-full" disabled>
+                      <Bot className="w-4 h-4 mr-2" />
+                      Available in Project Editor
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </TabsContent>
