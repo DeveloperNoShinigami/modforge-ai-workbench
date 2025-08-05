@@ -68,7 +68,7 @@ Generate code that is production-ready and follows Minecraft modding conventions
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { 
             role: 'system', 
