@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Play, Save, Zap, Download, Loader2, FileCode, Folder, Plus, Upload, GitBranch, Package, BarChart3, Settings } from "lucide-react";
+import { ArrowLeft, Play, Save, Zap, Download, Loader2, FileCode, Folder, FolderOpen, Plus, Upload, GitBranch, Package, BarChart3, Settings, ChevronRight, ChevronDown } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectEditor } from "@/hooks/useProjectEditor";
 import { useAIChat } from "@/hooks/useAIChat";
@@ -47,14 +47,20 @@ export default function ProjectEditor() {
   const {
     currentFile,
     files,
+    folders,
+    expandedFolders,
     loading,
     setCurrentFile,
     saveFile,
     updateFileContent,
     createNewFile,
+    createNewFolder,
     uploadFile,
     buildProject,
-    exportProject
+    exportProject,
+    toggleFolder,
+    getFilesByFolder,
+    getAllFolders
   } = useProjectEditor(project);
 
   const [currentTier] = useState<'free' | 'junior' | 'senior'>('free');
@@ -152,6 +158,90 @@ export default function ProjectEditor() {
     }
   };
 
+  const renderFileTree = () => {
+    const allFolders = getAllFolders();
+    const filesByFolder = getFilesByFolder();
+    
+    const renderFolder = (folderPath: string, depth: number = 0) => {
+      const isExpanded = expandedFolders.has(folderPath);
+      const folderName = folderPath.split('/').pop() || folderPath;
+      const folderFiles = filesByFolder[folderPath] || [];
+      
+      // Get subfolders
+      const subfolders = allFolders.filter(f => 
+        f.startsWith(folderPath + '/') && 
+        f.split('/').length === folderPath.split('/').length + 1
+      );
+      
+      return (
+        <div key={folderPath}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-1 h-6 p-1"
+            style={{ paddingLeft: `${8 + depth * 12}px` }}
+            onClick={() => toggleFolder(folderPath)}
+          >
+            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {isExpanded ? <FolderOpen className="w-3 h-3" /> : <Folder className="w-3 h-3" />}
+            <span className="text-xs truncate">{folderName}</span>
+          </Button>
+          
+          {isExpanded && (
+            <div>
+              {/* Render subfolders first */}
+              {subfolders.map(subfolder => renderFolder(subfolder, depth + 1))}
+              
+              {/* Render files in this folder */}
+              {folderFiles.map((file) => (
+                <Button
+                  key={file.id}
+                  variant={currentFile?.id === file.id ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start gap-1 h-6 p-1"
+                  style={{ paddingLeft: `${20 + depth * 12}px` }}
+                  onClick={() => setCurrentFile(file)}
+                >
+                  <FileCode className="w-3 h-3" />
+                  <span className="text-xs truncate">{file.name}</span>
+                  {file.modified && (
+                    <div className="w-2 h-2 bg-primary rounded-full ml-auto" />
+                  )}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-0">
+        {/* Root files */}
+        {(filesByFolder[''] || []).map((file) => (
+          <Button
+            key={file.id}
+            variant={currentFile?.id === file.id ? "secondary" : "ghost"}
+            size="sm"
+            className="w-full justify-start gap-1 h-6 p-1"
+            onClick={() => setCurrentFile(file)}
+          >
+            <FileCode className="w-3 h-3" />
+            <span className="text-xs truncate">{file.name}</span>
+            {file.modified && (
+              <div className="w-2 h-2 bg-primary rounded-full ml-auto" />
+            )}
+          </Button>
+        ))}
+        
+        {/* Render folder tree starting with root folders */}
+        {allFolders
+          .filter(folder => !folder.includes('/')) // Only root folders
+          .map(folder => renderFolder(folder, 0))}
+      </div>
+    );
+  };
+
   if (loading || !project || !currentFile) {
     console.log("ProjectEditor loading state:", { loading, hasProject: !!project, hasCurrentFile: !!currentFile });
     return (
@@ -240,51 +330,40 @@ export default function ProjectEditor() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[400px]">
-                <div className="p-3 space-y-1">
-                  {files.map((file) => (
-                    <Button
-                      key={file.id}
-                      variant={currentFile?.id === file.id ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start gap-2 h-auto p-2"
-                      onClick={() => setCurrentFile(file)}
-                    >
-                      <FileCode className="w-3 h-3" />
-                      <span className="text-xs">{file.name}</span>
-                      {file.modified && (
-                        <div className="w-2 h-2 bg-primary rounded-full ml-auto" />
-                      )}
-                    </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start gap-2 h-auto p-2 mt-2"
-                    onClick={() => createNewFile('NewClass.java', 'java')}
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span className="text-xs">New File</span>
-                  </Button>
+              <ScrollArea className="h-[500px]">
+                <div className="p-2 space-y-1">
+                  {renderFileTree()}
                   
-                  <label className="w-full">
-                    <input
-                      type="file"
-                      multiple
-                      accept=".java,.json,.mcmeta,.properties"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
+                  <div className="pt-2 border-t border-border mt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full justify-start gap-2 h-auto p-2 mt-1"
-                      type="button"
+                      className="w-full justify-start gap-2 h-auto p-2"
+                      onClick={() => createNewFile('NewClass.java', 'java')}
                     >
-                      <Upload className="w-3 h-3" />
-                      <span className="text-xs">Upload Files</span>
+                      <Plus className="w-3 h-3" />
+                      <span className="text-xs">New File</span>
                     </Button>
-                  </label>
+                    
+                    <label className="w-full">
+                      <input
+                        type="file"
+                        multiple
+                        accept=".java,.json,.mcmeta,.properties,.toml,.gradle,.md,.sh,.bat"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2 h-auto p-2 mt-1"
+                        type="button"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span className="text-xs">Upload Files</span>
+                      </Button>
+                    </label>
+                  </div>
                 </div>
               </ScrollArea>
             </CardContent>
@@ -354,7 +433,7 @@ export default function ProjectEditor() {
                           description: `${filename} has been updated with AI-generated code`
                         });
                       } else {
-                        const type = fileType as 'java' | 'json' | 'mcmeta' | 'properties';
+                        const type = fileType as 'java' | 'json' | 'mcmeta' | 'properties' | 'toml' | 'bat' | 'sh' | 'md' | 'gitignore' | 'gradle';
                         createNewFile(filename, type, code);
                         toast({
                           title: "File created!",
