@@ -95,6 +95,25 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     setDragOverFolder(null);
     
     try {
+      // First try to get data from ChatHistory (new file creation)
+      const chatData = e.dataTransfer.getData('application/json');
+      if (chatData) {
+        const { code, filename, fileType, action } = JSON.parse(chatData);
+        if (action === 'add-file') {
+          const filePath = targetPath === '' ? filename : `${targetPath}/${filename}`;
+          const newFile = await createFile(filename, filePath, code, fileType, false, targetPath || '/');
+          if (newFile) {
+            toast({
+              title: "File created",
+              description: `${filename} added to ${targetPath || 'root'}`,
+            });
+            onFileSelect(newFile);
+          }
+          return;
+        }
+      }
+      
+      // Fallback to existing file move functionality
       const fileData = JSON.parse(e.dataTransfer.getData('text/plain'));
       const newPath = targetPath === '' ? fileData.file_name : `${targetPath}/${fileData.file_name}`;
       
@@ -106,10 +125,10 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
         description: `${fileData.file_name} moved to ${targetPath || 'root'}`,
       });
     } catch (error) {
-      console.error('Error moving file:', error);
+      console.error('Error handling drop:', error);
       toast({
         title: "Error",
-        description: "Failed to move file",
+        description: "Failed to handle file operation",
         variant: "destructive"
       });
     }

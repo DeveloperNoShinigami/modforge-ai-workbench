@@ -68,8 +68,15 @@ export default function ProjectEditor() {
 
   const handleAddToProject = async (code: string, filename: string, fileType: string) => {
     try {
-      await createFile(filename, code, fileType as any);
-      console.log("File added to project:", filename);
+      // createFile expects (fileName, filePath, content, fileType, isDirectory?, parentPath?)
+      const newFile = await createFile(filename, filename, code, fileType as any, false, '/');
+      if (newFile) {
+        console.log("File added to project:", filename);
+        // Auto-select the newly created file
+        setSelectedFile(newFile);
+        setFileContent(code);
+        setUnsavedChanges(false);
+      }
     } catch (error) {
       console.error("Error adding file to project:", error);
     }
