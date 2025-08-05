@@ -57,3 +57,9 @@ verify_jwt = false
 
 [functions.dependency-manager]
 verify_jwt = false
+
+[functions.simple-generate]
+verify_jwt = false
+
+[functions.simple-review]
+verify_jwt = false
