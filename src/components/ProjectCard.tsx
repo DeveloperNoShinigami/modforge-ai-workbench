@@ -1,17 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, GitBranch, Play, Settings } from "lucide-react";
+import { Calendar, GitBranch, Play, Settings, Trash2 } from "lucide-react";
+import { Project } from "@/hooks/useProjects";
 
-interface ProjectCardProps {
-  name: string;
-  platform: 'forge' | 'fabric' | 'quilt' | 'neoforge';
-  minecraftVersion: string;
-  lastModified: string;
-  status: 'active' | 'building' | 'error';
+interface ProjectCardProps extends Omit<Project, 'user_id' | 'mod_id' | 'description'> {
+  onStatusUpdate?: (projectId: string, status: Project['status']) => void;
+  onDelete?: (projectId: string) => void;
 }
 
-export function ProjectCard({ name, platform, minecraftVersion, lastModified, status }: ProjectCardProps) {
+export function ProjectCard({ id, name, platform, minecraft_version, updated_at, status, onStatusUpdate, onDelete }: ProjectCardProps) {
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case 'forge': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
@@ -27,8 +25,20 @@ export function ProjectCard({ name, platform, minecraftVersion, lastModified, st
       case 'active': return 'bg-accent/10 text-accent border-accent/20';
       case 'building': return 'bg-tier-junior/10 text-tier-junior border-tier-junior/20';
       case 'error': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'completed': return 'bg-tier-senior/10 text-tier-senior border-tier-senior/20';
       default: return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const formatLastModified = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 48) return '1 day ago';
+    return `${Math.floor(diffInHours / 24)} days ago`;
   };
 
   return (
@@ -44,14 +54,14 @@ export function ProjectCard({ name, platform, minecraftVersion, lastModified, st
           <Badge variant="outline" className={getPlatformColor(platform)}>
             {platform.charAt(0).toUpperCase() + platform.slice(1)}
           </Badge>
-          <span className="text-sm text-muted-foreground">MC {minecraftVersion}</span>
+          <span className="text-sm text-muted-foreground">MC {minecraft_version}</span>
         </div>
       </CardHeader>
       
       <CardContent className="pt-0">
         <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
           <Calendar className="w-3 h-3" />
-          Modified {lastModified}
+          Modified {formatLastModified(updated_at)}
         </div>
         
         <div className="flex items-center gap-2">
@@ -64,6 +74,14 @@ export function ProjectCard({ name, platform, minecraftVersion, lastModified, st
           </Button>
           <Button variant="outline" size="sm">
             <Settings className="w-3 h-3" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onDelete?.(id)}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="w-3 h-3" />
           </Button>
         </div>
       </CardContent>

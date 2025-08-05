@@ -1,8 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, FileCode, Zap, BookOpen, Rocket, Github } from "lucide-react";
+import { ProjectCreationDialog } from "@/components/ProjectCreationDialog";
 
-export function QuickActions() {
+interface QuickActionsProps {
+  onProjectCreated?: () => void;
+}
+
+export function QuickActions({ onProjectCreated }: QuickActionsProps) {
   const actions = [
     {
       icon: Plus,
@@ -55,7 +60,8 @@ export function QuickActions() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {actions.map((action) => {
+          <ProjectCreationDialog onProjectCreated={onProjectCreated} />
+          {actions.slice(1).map((action) => {
             const Icon = action.icon;
             return (
               <Button

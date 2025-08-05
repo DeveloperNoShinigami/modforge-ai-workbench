@@ -5,6 +5,8 @@ import { QuickActions } from "@/components/QuickActions";
 import { AIAssistant } from "@/components/AIAssistant";
 import { CodeEditor } from "@/components/CodeEditor";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,30 +26,8 @@ import {
 
 const Index = () => {
   const [currentTier, setCurrentTier] = useState<'free' | 'junior' | 'senior'>('free');
-
-  const mockProjects = [
-    {
-      name: "Epic Weapons Mod",
-      platform: "forge" as const,
-      minecraftVersion: "1.20.1",
-      lastModified: "2 hours ago",
-      status: "active" as const
-    },
-    {
-      name: "Magic Dimensions",
-      platform: "fabric" as const,
-      minecraftVersion: "1.19.4",
-      lastModified: "1 day ago",
-      status: "building" as const
-    },
-    {
-      name: "Tech Overhaul",
-      platform: "neoforge" as const,
-      minecraftVersion: "1.20.1",
-      lastModified: "3 days ago",
-      status: "error" as const
-    }
-  ];
+  const { projects, loading, fetchProjects, updateProjectStatus, deleteProject } = useProjects();
+  const { user } = useAuth();
 
   const features = [
     {
@@ -150,18 +130,39 @@ const Index = () => {
           <TabsContent value="dashboard" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <QuickActions />
+                <QuickActions onProjectCreated={fetchProjects} />
                 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Recent Projects</CardTitle>
+                    <CardTitle className="text-lg">
+                      {user ? 'Your Projects' : 'Recent Projects'}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {mockProjects.map((project, index) => (
-                        <ProjectCard key={index} {...project} />
-                      ))}
-                    </div>
+                    {loading ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        Loading projects...
+                      </div>
+                    ) : projects.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {projects.map((project) => (
+                          <ProjectCard 
+                            key={project.id} 
+                            {...project} 
+                            onStatusUpdate={updateProjectStatus}
+                            onDelete={deleteProject}
+                          />
+                        ))}
+                      </div>
+                    ) : user ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        <p>No projects yet. Create your first mod project to get started!</p>
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <p>Sign in to create and manage your mod projects.</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
