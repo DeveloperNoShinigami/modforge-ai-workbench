@@ -131,12 +131,14 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     if (!newFileName.trim()) return;
 
     try {
+      const parentPath = selectedParent === 'root' ? undefined : selectedParent || undefined;
+      
       if (createType === 'folder') {
-        await createFolder(newFileName, selectedParent || undefined);
+        await createFolder(newFileName, parentPath);
       } else if (createType === 'template' && selectedTemplate) {
-        await createFileFromTemplate(selectedTemplate, newFileName, selectedParent || undefined, modId);
+        await createFileFromTemplate(selectedTemplate, newFileName, parentPath, modId);
       } else {
-        const filePath = selectedParent ? `${selectedParent}/${newFileName}` : newFileName;
+        const filePath = parentPath ? `${parentPath}/${newFileName}` : newFileName;
         await createFile(newFileName, filePath);
       }
       
@@ -288,7 +290,7 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
                   <SelectValue placeholder="Select parent folder" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Root</SelectItem>
+                  <SelectItem value="root">Root</SelectItem>
                   {getFolderOptions(files).map(folder => (
                     <SelectItem key={folder.value} value={folder.value}>
                       {folder.label}
