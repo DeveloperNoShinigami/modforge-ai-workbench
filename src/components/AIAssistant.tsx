@@ -38,11 +38,19 @@ export function AIAssistant({
     }
     
     console.log("🤖 AIAssistant: Generating code for project:", projectId);
+    console.log("🤖 AIAssistant: Using prompt:", textToUse);
+    console.log("🤖 AIAssistant: Current file context:", currentFile?.name);
+    console.log("🤖 AIAssistant: Project context:", projectContext);
+    
     const result = await generateCodeWithAI(textToUse, currentFile, projectContext);
+    console.log("🤖 AIAssistant: Received result:", result);
+    
     if (result) {
       console.log("🤖 AIAssistant: Code generated successfully:", result.filename);
       onCodeGenerated?.(result.code, result.filename, result.fileType);
       setPrompt("");
+    } else {
+      console.log("🤖 AIAssistant: No result received");
     }
   };
 

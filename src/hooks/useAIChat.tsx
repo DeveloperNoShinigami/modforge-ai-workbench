@@ -41,6 +41,7 @@ export function useAIChat() {
     currentFile?: ProjectFile,
     projectContext?: string
   ): Promise<AICodeResponse | null> => {
+    console.log("🤖 useAIChat: Starting generateCodeWithAI");
     console.log("🤖 useAIChat: Generating code", { prompt: prompt.substring(0, 50), hasFile: !!currentFile, projectContext });
     
     setLoading(true);
@@ -58,8 +59,8 @@ export function useAIChat() {
         prompt
       };
 
-      console.log("🤖 useAIChat: Sending context to AI", context);
-
+      console.log("🤖 useAIChat: Calling Supabase edge function...");
+      
       // Call the real Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('generate-code', {
         body: {
@@ -68,6 +69,8 @@ export function useAIChat() {
           projectContext: context.projectContext
         }
       });
+      
+      console.log("🤖 useAIChat: Supabase function response:", { data, error });
 
       if (error) {
         console.error('🤖 useAIChat: Supabase function error:', error);
@@ -76,10 +79,12 @@ export function useAIChat() {
       }
 
       if (!data) {
+        console.error("🤖 useAIChat: No data received from AI service");
         throw new Error('No response from AI service');
       }
 
       console.log("🤖 useAIChat: Received AI response:", data);
+      console.log("🤖 useAIChat: Creating response object");
 
       const response: AICodeResponse = {
         code: data.code,
@@ -88,17 +93,21 @@ export function useAIChat() {
         fileType: data.fileType
       };
       
+      console.log("🤖 useAIChat: Adding AI response to chat:", response.filename);
       addMessage('ai', response.explanation, response.filename);
 
+      console.log("🤖 useAIChat: Showing success toast");
       toast({
         title: "Code generated successfully!",
         description: response.explanation
       });
 
+      console.log("🤖 useAIChat: Returning successful response");
       return response;
 
     } catch (error) {
       console.error('🤖 useAIChat: Error generating code:', error);
+      console.error('🤖 useAIChat: Error stack:', error instanceof Error ? error.stack : 'No stack');
       addMessage('ai', 'Sorry, I encountered an error generating code. Please try again.');
       
       toast({
