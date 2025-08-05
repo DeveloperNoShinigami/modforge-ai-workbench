@@ -47,12 +47,19 @@ export default function ProjectEditor() {
   };
 
   const handleSave = async () => {
-    if (!selectedFile || !unsavedChanges) return;
+    if (!selectedFile || !unsavedChanges) {
+      console.log("💾 Save skipped:", { hasFile: !!selectedFile, hasChanges: unsavedChanges });
+      return;
+    }
     
+    console.log("💾 Saving file:", selectedFile.file_name, "with", fileContent.length, "characters");
     const success = await updateFile(selectedFile.id, fileContent);
     if (success) {
+      console.log("💾 Save successful");
       setUnsavedChanges(false);
       setSelectedFile(prev => prev ? { ...prev, file_content: fileContent } : null);
+    } else {
+      console.error("💾 Save failed");
     }
   };
 
@@ -68,17 +75,20 @@ export default function ProjectEditor() {
 
   const handleAddToProject = async (code: string, filename: string, fileType: string) => {
     try {
+      console.log("🔄 Adding file to project:", { filename, fileType, codeLength: code.length });
       // createFile expects (fileName, filePath, content, fileType, isDirectory?, parentPath?)
       const newFile = await createFile(filename, filename, code, fileType as any, false, '/');
       if (newFile) {
-        console.log("File added to project:", filename);
+        console.log("✅ File added to project successfully:", filename);
         // Auto-select the newly created file
         setSelectedFile(newFile);
         setFileContent(code);
         setUnsavedChanges(false);
+      } else {
+        console.error("❌ Failed to create file:", filename);
       }
     } catch (error) {
-      console.error("Error adding file to project:", error);
+      console.error("❌ Error adding file to project:", error);
     }
   };
 
@@ -188,7 +198,7 @@ export default function ProjectEditor() {
           </div>
           
           {/* Code Editor */}
-          <div className="col-span-5">
+          <div className="col-span-4">
             <Card className="h-full">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -226,7 +236,7 @@ export default function ProjectEditor() {
           </div>
           
           {/* Right Sidebar - Tools & AI */}
-          <div className="col-span-4">
+          <div className="col-span-5">
             <div className="space-y-6">
               {/* AI Assistant */}
               <AIAssistant
