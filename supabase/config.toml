@@ -42,3 +42,18 @@ verify_jwt = false
 
 [functions.review-code]
 verify_jwt = false
+
+[functions.build-test]
+verify_jwt = false
+
+[functions.project-scaffolding]
+verify_jwt = false
+
+[functions.github-integration]
+verify_jwt = false
+
+[functions.performance-analysis]
+verify_jwt = false
+
+[functions.dependency-manager]
+verify_jwt = false
