@@ -27,8 +27,8 @@ export default function ProjectEditor() {
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // AI and Build Hooks
-  const { messages, loading: aiLoading, generateCodeWithAI, reviewCodeWithAI, clearChat } = useAIChat();
+  // AI and Build Hooks (now using unified useAIChat)
+  const { messages, loading: aiLoading, generateCodeWithAI, reviewCodeWithAI, clearChat, generateCode, reviewCode } = useAIChat();
   const { buildProject: buildProjectAPI, buildResult, loading: buildLoading } = useBuildTest();
   const { analyzeProject, analysis, loading: analysisLoading } = usePerformanceAnalysis();
   const { searchDependencies, addDependency, listDependencies, searchResults, loading: depLoading } = useDependencyManager();
@@ -121,6 +121,7 @@ export default function ProjectEditor() {
   const handleCodeReview = async () => {
     if (!currentFile) return;
     
+    console.log("🔍 ProjectEditor: Starting code review for", currentFile.name);
     const review = await reviewCodeWithAI(currentFile);
     if (review) {
       toast({

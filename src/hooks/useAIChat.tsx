@@ -11,6 +11,14 @@ export interface AICodeResponse {
   fileType: 'java' | 'json' | 'mcmeta' | 'properties';
 }
 
+// Legacy interface for compatibility
+export interface AIResponse {
+  code: string;
+  explanation: string;
+  fileType: 'java' | 'json' | 'mcmeta';
+  filename: string;
+}
+
 export function useAIChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +41,7 @@ export function useAIChat() {
     currentFile?: ProjectFile,
     projectContext?: string
   ): Promise<AICodeResponse | null> => {
-    console.log("🤖 useAIChat: Generating code", { prompt: prompt.substring(0, 50), hasFile: !!currentFile });
+    console.log("🤖 useAIChat: Generating code", { prompt: prompt.substring(0, 50), hasFile: !!currentFile, projectContext });
     
     setLoading(true);
     addMessage('user', prompt, currentFile?.name);
@@ -63,6 +71,7 @@ export function useAIChat() {
 
       if (error) {
         console.error('🤖 useAIChat: Supabase function error:', error);
+        console.error('🤖 useAIChat: Error details:', JSON.stringify(error, null, 2));
         throw new Error(error.message || 'Failed to generate code');
       }
 
@@ -122,6 +131,7 @@ export function useAIChat() {
 
       if (error) {
         console.error('🤖 useAIChat: Code review error:', error);
+        console.error('🤖 useAIChat: Review error details:', JSON.stringify(error, null, 2));
         throw new Error(error.message || 'Failed to review code');
       }
 
@@ -155,13 +165,46 @@ export function useAIChat() {
     setMessages([]);
   };
 
+  // Legacy methods for compatibility
+  const generateCode = async (prompt: string, projectId?: string): Promise<AIResponse | null> => {
+    const currentFileForContext = undefined; // No current file context in legacy method
+    const projectContext = projectId ? `Project ID: ${projectId}` : undefined;
+    
+    const result = await generateCodeWithAI(prompt, currentFileForContext, projectContext);
+    if (result) {
+      return {
+        code: result.code,
+        explanation: result.explanation,
+        fileType: result.fileType as 'java' | 'json' | 'mcmeta',
+        filename: result.filename
+      };
+    }
+    return null;
+  };
+
+  const reviewCode = async (code: string): Promise<string | null> => {
+    const mockFile: ProjectFile = {
+      id: 'temp',
+      name: 'temp.java',
+      type: 'java',
+      path: 'temp.java',
+      content: code,
+      modified: false
+    };
+    
+    return await reviewCodeWithAI(mockFile);
+  };
+
   return {
     messages,
     loading,
     generateCodeWithAI,
     reviewCodeWithAI,
     clearChat,
-    addMessage
+    addMessage,
+    // Legacy compatibility
+    generateCode,
+    reviewCode
   };
 }
 
