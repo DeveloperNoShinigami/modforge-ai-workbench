@@ -61,8 +61,8 @@ export function useAIChat() {
 
       console.log("🤖 useAIChat: Calling Supabase edge function...");
       
-      // Call the real Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-code', {
+      // Call the new simple edge function that always returns 200
+      const { data, error } = await supabase.functions.invoke('simple-generate', {
         body: {
           prompt: context.prompt,
           currentFile: context.currentFile,
