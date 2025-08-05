@@ -1,9 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, User, Clock, Download, Plus, Copy, FileCode2 } from 'lucide-react';
+import { Bot, User, Clock, Download, Plus, Copy, FileCode2, MessageSquare, Send, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export interface ChatMessage {
   id: string;
@@ -17,15 +19,19 @@ export interface ChatMessage {
     fileType: string;
     explanation: string;
   };
+  isReplyable?: boolean;
 }
 
 interface ChatHistoryProps {
   messages: ChatMessage[];
   onAddToProject?: (code: string, filename: string, fileType: string) => void;
+  onReplyToMessage?: (messageId: string, reply: string) => void;
 }
 
-export function ChatHistory({ messages, onAddToProject }: ChatHistoryProps) {
+export function ChatHistory({ messages, onAddToProject, onReplyToMessage }: ChatHistoryProps) {
   const { toast } = useToast();
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
   console.log("💬 ChatHistory: Rendering", messages.length, "messages");
 
   const handleCopyCode = (code: string) => {
@@ -45,6 +51,7 @@ export function ChatHistory({ messages, onAddToProject }: ChatHistoryProps) {
   };
 
   const handleDragStart = (e: React.DragEvent, code: string, filename: string, fileType: string) => {
+    console.log("🚀 Starting drag with data:", { filename, fileType });
     e.dataTransfer.setData('application/json', JSON.stringify({
       code,
       filename,
@@ -52,6 +59,18 @@ export function ChatHistory({ messages, onAddToProject }: ChatHistoryProps) {
       action: 'add-file'
     }));
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleReply = (messageId: string) => {
+    if (replyText.trim() && onReplyToMessage) {
+      onReplyToMessage(messageId, replyText);
+      setReplyText("");
+      setReplyingTo(null);
+      toast({
+        title: "Reply sent",
+        description: "Your feedback has been noted"
+      });
+    }
   };
 
   if (messages.length === 0) {
@@ -176,15 +195,59 @@ export function ChatHistory({ messages, onAddToProject }: ChatHistoryProps) {
                       </div>
                     )}
                     
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {message.timestamp.toLocaleTimeString()}
-                      {message.fileContext && (
-                        <Badge variant="outline" className="text-xs">
-                          {message.fileContext}
-                        </Badge>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {message.timestamp.toLocaleTimeString()}
+                        {message.fileContext && (
+                          <Badge variant="outline" className="text-xs">
+                            {message.fileContext}
+                          </Badge>
+                        )}
+                      </div>
+                      {message.type === 'ai' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setReplyingTo(message.id)}
+                        >
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          Reply
+                        </Button>
                       )}
                     </div>
+
+                    {/* Reply Input */}
+                    {replyingTo === message.id && (
+                      <div className="mt-2 p-2 bg-muted/50 rounded-lg border">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Your feedback..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            className="h-8 text-xs"
+                            onKeyPress={(e) => e.key === 'Enter' && handleReply(message.id)}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => handleReply(message.id)}
+                            disabled={!replyText.trim()}
+                          >
+                            <Send className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => setReplyingTo(null)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

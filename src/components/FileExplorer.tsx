@@ -94,38 +94,63 @@ export function FileExplorer({ projectId, modId, onFileSelect, selectedFile }: F
     e.preventDefault();
     setDragOverFolder(null);
     
+    console.log("🎯 FileExplorer: Drop event triggered on:", targetPath);
+    
     try {
       // First try to get data from ChatHistory (new file creation)
       const chatData = e.dataTransfer.getData('application/json');
+      console.log("🎯 FileExplorer: Chat data:", chatData);
+      
       if (chatData) {
-        const { code, filename, fileType, action } = JSON.parse(chatData);
-        if (action === 'add-file') {
-          const filePath = targetPath === '' ? filename : `${targetPath}/${filename}`;
-          const newFile = await createFile(filename, filePath, code, fileType, false, targetPath || '/');
-          if (newFile) {
-            toast({
-              title: "File created",
-              description: `${filename} added to ${targetPath || 'root'}`,
-            });
-            onFileSelect(newFile);
+        try {
+          const { code, filename, fileType, action } = JSON.parse(chatData);
+          console.log("🎯 FileExplorer: Parsed chat data:", { filename, fileType, action });
+          
+          if (action === 'add-file') {
+            const filePath = targetPath === '' ? filename : `${targetPath}/${filename}`;
+            console.log("🎯 FileExplorer: Creating file at path:", filePath);
+            
+            const newFile = await createFile(filename, filePath, code, fileType, false, targetPath || '/');
+            if (newFile) {
+              console.log("🎯 FileExplorer: File created successfully:", newFile);
+              toast({
+                title: "File created",
+                description: `${filename} added to ${targetPath || 'root'}`,
+              });
+              onFileSelect(newFile);
+            } else {
+              console.error("🎯 FileExplorer: Failed to create file");
+              toast({
+                title: "Error",
+                description: "Failed to create file",
+                variant: "destructive"
+              });
+            }
+            return;
           }
-          return;
+        } catch (parseError) {
+          console.error("🎯 FileExplorer: Error parsing chat data:", parseError);
         }
       }
       
       // Fallback to existing file move functionality
-      const fileData = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const newPath = targetPath === '' ? fileData.file_name : `${targetPath}/${fileData.file_name}`;
+      const fileData = e.dataTransfer.getData('text/plain');
+      console.log("🎯 FileExplorer: File data:", fileData);
       
-      // Update file path in database
-      await updateFile(fileData.id, fileData.file_content, newPath);
-      
-      toast({
-        title: "File moved",
-        description: `${fileData.file_name} moved to ${targetPath || 'root'}`,
-      });
+      if (fileData) {
+        const parsedFileData = JSON.parse(fileData);
+        const newPath = targetPath === '' ? parsedFileData.file_name : `${targetPath}/${parsedFileData.file_name}`;
+        
+        console.log("🎯 FileExplorer: Moving file to:", newPath);
+        await updateFile(parsedFileData.id, parsedFileData.file_content, newPath);
+        
+        toast({
+          title: "File moved",
+          description: `${parsedFileData.file_name} moved to ${targetPath || 'root'}`,
+        });
+      }
     } catch (error) {
-      console.error('Error handling drop:', error);
+      console.error('🎯 FileExplorer: Error handling drop:', error);
       toast({
         title: "Error",
         description: "Failed to handle file operation",

@@ -29,7 +29,7 @@ export function AIAssistant({
   onAddToProject
 }: AIAssistantProps) {
   const [prompt, setPrompt] = useState("");
-  const { messages, loading, generateCodeWithAI, reviewCodeWithAI, clearChat } = useAIChat();
+  const { messages, loading, generateCodeWithAI, reviewCodeWithAI, clearChat, addMessage } = useAIChat();
   
   const handleSubmit = async (promptText?: string) => {
     const textToUse = promptText || prompt;
@@ -65,6 +65,12 @@ export function AIAssistant({
       onCodeReview?.(review);
     }
   };
+
+  const handleReplyToMessage = (messageId: string, reply: string) => {
+    console.log("🤖 AIAssistant: User replied to message:", messageId, "with:", reply);
+    addMessage('user', `Reply to previous message: ${reply}`, 'feedback');
+    // Here you could also send the feedback to your analytics or AI training pipeline
+  };
   const getRequestsRemaining = () => {
     switch (currentTier) {
       case 'free': return '7 of 10';
@@ -76,19 +82,81 @@ export function AIAssistant({
 
   const getSuggestions = () => {
     if (currentFile?.type === 'java') {
+      if (currentFile.name.includes('Block')) {
+        return [
+          "Add block states and properties",
+          "Implement custom block interactions",
+          "Add sound and particle effects",
+          "Create block drops and loot tables",
+          "Add right-click functionality"
+        ];
+      } else if (currentFile.name.includes('Item')) {
+        return [
+          "Add custom item abilities",
+          "Create enchantment compatibility",
+          "Add item durability and repair",
+          "Implement special use actions",
+          "Add crafting recipe for this item"
+        ];
+      } else if (currentFile.name.includes('Mod') || currentFile.name.includes('Main')) {
+        return [
+          "Add new registration methods",
+          "Create configuration system",
+          "Add mod compatibility checks",
+          "Implement update checker",
+          "Add debugging utilities"
+        ];
+      } else {
+        return [
+          "Add error handling to this class",
+          "Create utility methods",
+          "Add logging and debugging",
+          "Implement design patterns",
+          "Add unit tests for this code"
+        ];
+      }
+    } else if (currentFile?.type === 'json') {
+      if (currentFile.name.includes('recipe')) {
+        return [
+          "Create shaped crafting recipe",
+          "Add shapeless recipe variant",
+          "Create smelting recipe",
+          "Add brewing recipe",
+          "Create advancement recipe unlock"
+        ];
+      } else if (currentFile.name.includes('model')) {
+        return [
+          "Add texture variants",
+          "Create block state models",
+          "Add parent model inheritance",
+          "Create custom item model",
+          "Add model overrides"
+        ];
+      } else {
+        return [
+          "Add localization entries",
+          "Create data pack structure",
+          "Add tag definitions",
+          "Create loot table entries",
+          "Add advancement criteria"
+        ];
+      }
+    } else if (currentFile?.type === 'gradle') {
       return [
-        "Add a new method to this class",
-        "Create a custom block that heals players",
-        "Generate an item with special abilities",
-        "Add event handling to this class",
-        "Create unit tests for this code"
+        "Add new dependencies",
+        "Configure build tasks",
+        "Setup development environment",
+        "Add plugin configurations",
+        "Create deployment scripts"
       ];
     }
+    
+    // Default suggestions when no file is selected
     return [
       "Create a new block with custom properties",
-      "Generate an entity that spawns in caves", 
-      "Add a crafting recipe for my item",
-      "Create a dimension with custom biomes",
+      "Generate an item with special abilities", 
+      "Add a crafting recipe",
+      "Create an entity that spawns in caves",
       "Generate utility helper methods"
     ];
   };
@@ -228,7 +296,11 @@ export function AIAssistant({
                   )}
                 </div>
                 <div className="flex-1">
-                  <ChatHistory messages={messages} onAddToProject={onAddToProject} />
+                  <ChatHistory 
+                    messages={messages} 
+                    onAddToProject={onAddToProject}
+                    onReplyToMessage={handleReplyToMessage}
+                  />
                 </div>
               </div>
             </TabsContent>
