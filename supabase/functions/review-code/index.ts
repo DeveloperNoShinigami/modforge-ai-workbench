@@ -21,8 +21,11 @@ serve(async (req) => {
     }
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    console.log("🔍 OpenAI API key check:", openAIApiKey ? "Found" : "Missing");
+    
     if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+      console.error("🔍 OpenAI API key not found in environment");
+      throw new Error('OpenAI API key not configured - please check Supabase secrets');
     }
 
     // Build specialized system prompt for code review
@@ -87,9 +90,13 @@ Provide feedback on:
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API Error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errorData = await response.json().catch(() => ({ error: { message: 'Unknown API error' } }));
+      console.error('🔍 OpenAI API Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+      throw new Error(`OpenAI API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
