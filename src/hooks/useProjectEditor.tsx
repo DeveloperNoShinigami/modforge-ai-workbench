@@ -18,12 +18,14 @@ export function useProjectEditor(project?: Project) {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("useProjectEditor: Project changed:", project?.name || 'No project');
     if (project) {
       loadProjectFiles(project);
     }
   }, [project]);
 
   const loadProjectFiles = async (project: Project) => {
+    console.log("useProjectEditor: Loading files for project:", project.name);
     setLoading(true);
     try {
       // Simulate loading project files
@@ -102,6 +104,7 @@ side="BOTH"`,
       
       setFiles(mockFiles);
       setCurrentFile(mockFiles[0]);
+      console.log("useProjectEditor: Loaded", mockFiles.length, "files");
       
     } catch (error) {
       console.error('Error loading project files:', error);

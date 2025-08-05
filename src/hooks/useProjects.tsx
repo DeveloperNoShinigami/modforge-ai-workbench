@@ -31,6 +31,8 @@ export function useProjects() {
 
     try {
       setLoading(true);
+      console.log("useProjects: Fetching projects for user:", user?.id);
+      
       const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -38,9 +40,11 @@ export function useProjects() {
         .order('updated_at', { ascending: false });
 
       if (error) {
+        console.error("useProjects: Database error:", error);
         throw error;
       }
 
+      console.log("useProjects: Fetched projects:", data?.length || 0);
       setProjects((data || []) as Project[]);
     } catch (error) {
       console.error('Error fetching projects:', error);

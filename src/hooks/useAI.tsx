@@ -15,7 +15,10 @@ export function useAI() {
   const { user } = useAuth();
 
   const generateCode = async (prompt: string, projectId?: string): Promise<AIResponse | null> => {
+    console.log("useAI: generateCode called", { prompt: prompt.substring(0, 50) + "...", projectId, userExists: !!user });
+    
     if (!user) {
+      console.log("useAI: No user found");
       toast({
         title: "Authentication required",
         description: "Please sign in to use AI features",
@@ -25,6 +28,7 @@ export function useAI() {
     }
 
     setLoading(true);
+    console.log("useAI: Starting code generation...");
     
     try {
       // Simulate AI code generation (replace with actual AI service later)
@@ -118,6 +122,8 @@ public class ExampleMod {
       ];
 
       const response = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+      
+      console.log("useAI: Generated response:", response.filename);
       
       toast({
         title: "Code generated successfully!",

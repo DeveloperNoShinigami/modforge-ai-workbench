@@ -24,6 +24,14 @@ export default function ProjectEditor() {
   const { generateCode, reviewCode, loading: aiLoading } = useAI();
   
   const project = projects.find(p => p.id === projectId);
+  
+  // Debug logging
+  console.log("ProjectEditor Debug:", {
+    projectId,
+    projectsCount: projects.length,
+    project: project ? `Found: ${project.name}` : "Not found",
+    userExists: !!user
+  });
   const {
     currentFile,
     files,
@@ -40,12 +48,16 @@ export default function ProjectEditor() {
   const [currentTier] = useState<'free' | 'junior' | 'senior'>('free');
 
   useEffect(() => {
+    console.log("ProjectEditor useEffect:", { user: !!user, project: !!project, loading });
+    
     if (!user) {
+      console.log("No user, redirecting to auth");
       navigate('/auth');
       return;
     }
     
-    if (!project && !loading) {
+    if (!project && !loading && projects.length > 0) {
+      console.log("Project not found and projects loaded:", projects.length);
       toast({
         title: "Project not found",
         description: "The project you're looking for doesn't exist",
@@ -53,7 +65,7 @@ export default function ProjectEditor() {
       });
       navigate('/');
     }
-  }, [project, user, loading, navigate, toast]);
+  }, [project, user, loading, navigate, toast, projects]);
 
   const handleSave = () => {
     if (currentFile) {
@@ -95,11 +107,14 @@ export default function ProjectEditor() {
   };
 
   if (loading || !project || !currentFile) {
+    console.log("ProjectEditor loading state:", { loading, hasProject: !!project, hasCurrentFile: !!currentFile });
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading project...</p>
+          <p className="text-muted-foreground">
+            {!project ? "Loading project..." : "Setting up IDE..."}
+          </p>
         </div>
       </div>
     );
